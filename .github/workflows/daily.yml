@@ -1,0 +1,62 @@
+name: Daily sync and deploy
+
+on:
+  schedule:
+    - cron: "17 5 * * *"   # every day 05:17 UTC
+  workflow_dispatch:
+    inputs:
+      window_days:
+        description: "How many days of notices to pull"
+        default: "30"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Pull new notices from TED
+        env:
+          WINDOW_DAYS: ${{ github.event.inputs.window_days || '30' }}
+        run: python scripts/sync.py
+
+      - name: Commit the updated store
+        run: |
+          git config user.name  "tenderpulse-bot"
+          git config user.email "actions@github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "data: daily TED sync $(date -u +%F)"
+          git push
+
+      - name: Build the site
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: cd scripts && python build.py
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
