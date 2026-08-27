@@ -14,7 +14,8 @@ from datetime import datetime, timezone, timedelta
 
 API = "https://api.ted.europa.eu/v3/notices/search"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STORE = os.path.join(ROOT, "data", "notices.jsonl")
+STORE_DIR = os.path.join(ROOT, "data", "notices")
+LEGACY = os.path.join(ROOT, "data", "notices.jsonl")
 
 # Notice types that represent an open opportunity (validated against the API).
 OPEN_TYPES = ["cn-standard", "cn-social", "cn-desg",
@@ -154,10 +155,21 @@ def fetch_all():
     return out
 
 
+def shard_key(rec):
+    """Group by publication month: old shards stop changing, so daily diffs stay small."""
+    return (rec.get("p") or rec.get("d") or "unknown")[:7] or "unknown"
+
+
 def load_store():
     store = {}
-    if os.path.exists(STORE):
-        with open(STORE, encoding="utf-8") as f:
+    paths = []
+    if os.path.exists(LEGACY):
+        paths.append(LEGACY)
+    if os.path.isdir(STORE_DIR):
+        paths += [os.path.join(STORE_DIR, f) for f in sorted(os.listdir(STORE_DIR))
+                  if f.endswith(".jsonl")]
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -171,10 +183,21 @@ def load_store():
 
 
 def save_store(store):
-    os.makedirs(os.path.dirname(STORE), exist_ok=True)
-    with open(STORE, "w", encoding="utf-8") as f:
-        for k in sorted(store):
-            f.write(json.dumps(store[k], ensure_ascii=False, sort_keys=True) + "\n")
+    os.makedirs(STORE_DIR, exist_ok=True)
+    shards = {}
+    for rec in store.values():
+        shards.setdefault(shard_key(rec), []).append(rec)
+    for name, recs in shards.items():
+        recs.sort(key=lambda r: r["id"])
+        with open(os.path.join(STORE_DIR, f"{name}.jsonl"), "w", encoding="utf-8") as f:
+            for rec in recs:
+                f.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
+    # remove shards that no longer hold anything
+    for f in os.listdir(STORE_DIR):
+        if f.endswith(".jsonl") and f[:-6] not in shards:
+            os.remove(os.path.join(STORE_DIR, f))
+    if os.path.exists(LEGACY):
+        os.remove(LEGACY)
 
 
 def main():

@@ -11,7 +11,8 @@ from datetime import datetime, timezone
 import meta
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STORE = os.path.join(ROOT, "data", "notices.jsonl")
+STORE_DIR = os.path.join(ROOT, "data", "notices")
+LEGACY = os.path.join(ROOT, "data", "notices.jsonl")
 OUT = os.path.join(ROOT, "site")
 CFG = json.load(open(os.path.join(ROOT, "config.json"), encoding="utf-8"))
 
@@ -176,12 +177,24 @@ def card(n):
 
 
 def load():
-    rows = []
-    with open(STORE, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                rows.append(json.loads(line))
+    rows, seen = [], set()
+    paths = []
+    if os.path.exists(LEGACY):
+        paths.append(LEGACY)
+    if os.path.isdir(STORE_DIR):
+        paths += [os.path.join(STORE_DIR, f) for f in sorted(os.listdir(STORE_DIR))
+                  if f.endswith(".jsonl")]
+    for path in paths:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                if rec["id"] in seen:
+                    continue
+                seen.add(rec["id"])
+                rows.append(rec)
     rows = [r for r in rows if deadline_bits(r["d"])[1] >= 0]
     rows.sort(key=lambda r: r["d"])
     return rows
@@ -252,8 +265,18 @@ def main():
 <p>Get the new tenders that match your sector and country in one daily email.</p>
 <a class="btn" href="/alerts.html">Set up alerts</a></div>
 </div>"""
+        ld = json.dumps({
+            "@context": "https://schema.org", "@type": "GovernmentService",
+            "name": n["t"][:200],
+            "serviceType": "Public procurement notice",
+            "provider": {"@type": "GovernmentOrganization", "name": n.get("b") or "Contracting authority"},
+            "areaServed": meta.country_name(n.get("c")),
+            "identifier": n["id"],
+            "url": f"{BASE}/n/{n['id']}.html" if BASE else "",
+        }, ensure_ascii=False)
         write(f"/n/{n['id']}.html",
               page(f"{n['t'][:110]} | {BRAND}", body,
+                   extra_head=f'<script type="application/ld+json">{ld}</script>',
                    desc=f"{meta.country_name(n.get('c'))}: {n['t'][:130]}. Deadline {dl}.",
                    canonical=f"/n/{n['id']}.html"))
         urls.append(f"/n/{n['id']}.html")

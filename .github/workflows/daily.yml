@@ -2,11 +2,11 @@ name: Daily sync and deploy
 
 on:
   schedule:
-    - cron: "17 5 * * *"   # every day 05:17 UTC
+    - cron: "17 5 * * *"   # every day at 05:17 UTC
   workflow_dispatch:
     inputs:
       window_days:
-        description: "How many days of notices to pull"
+        description: "How many days of notices to pull from TED"
         default: "30"
 
 permissions:
@@ -22,9 +22,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -35,11 +35,14 @@ jobs:
 
       - name: Commit the updated store
         run: |
-          git config user.name  "tenderpulse-bot"
+          git config user.name  "tenderpulse-ci"
           git config user.email "actions@github.com"
-          git add data/
-          git diff --staged --quiet || git commit -m "data: daily TED sync $(date -u +%F)"
-          git push
+          git add -A data/
+          if ! git diff --staged --quiet; then
+            git commit -m "data: TED sync $(date -u +%F)"
+            git pull --rebase --autostash origin main
+            git push
+          fi
 
       - name: Build the site
         env:
@@ -47,6 +50,9 @@ jobs:
         run: cd scripts && python build.py
 
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
