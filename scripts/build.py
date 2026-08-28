@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Generate the static site from the local notice store."""
+import csv
 import html
+import io
 import json
 import os
 import re
@@ -161,7 +163,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
-<a href="/cpv.html">CPV codes</a><a href="/api.html">API</a>
+<a href="/cpv.html">CPV codes</a><a href="/export.html">CSV</a><a href="/api.html">API</a>
 <a href="/alerts.html">Daily alerts</a><a href="/about.html">About</a></nav></div></header>
 <div class="wrap">{body}</div>
 <footer><div class="wrap">
@@ -605,6 +607,68 @@ The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
            for n in rows]
     write("/api/index.json", json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
 
+    # ---- spreadsheets ----------------------------------------------------
+    # The same rows the pages show, in the format most people actually work in.
+    # Free, and the reason to link to us rather than describe us.
+    CSV_COLS = ["reference", "title", "buyer", "country", "country_name",
+                "cpv_main", "cpv_main_label", "cpv_divisions", "contract_nature",
+                "place_of_performance", "published", "deadline", "page", "official_notice"]
+
+    def csv_rows(items):
+        buf = io.StringIO()
+        w = csv.writer(buf, lineterminator="\n")
+        w.writerow(CSV_COLS)
+        for n in items:
+            w.writerow([
+                n["id"], n.get("t", ""), n.get("b", ""), n.get("c", ""),
+                meta.country_name(n.get("c")), n.get("cpvf", ""),
+                meta.cpv_name(n.get("cpvf")) if n.get("cpvf") else "",
+                " ".join(n.get("cpv", [])), n.get("nat", ""), n.get("nuts", ""),
+                n.get("p", ""), n.get("d", ""),
+                f"{BASE}/n/{n['id']}.html",
+                f"https://ted.europa.eu/en/notice/-/detail/{n['id']}",
+            ])
+        return buf.getvalue()
+
+    write("/export/all-open-tenders.csv", csv_rows(rows))
+    for d, items in by_sector.items():
+        write(f"/export/sector-{d}.csv", csv_rows(items))
+    for c, items in by_country.items():
+        write(f"/export/country-{c}.csv", csv_rows(items))
+
+    def kb(path):
+        return max(1, os.path.getsize(os.path.join(OUT, path.lstrip("/"))) // 1024)
+
+    sec_dl = "".join(
+        f'<a href="/export/sector-{d}.csv"><b>{esc(d)}</b>'
+        f'<i>{esc(meta.cpv_label(d))}</i><u>{len(v):,} rows</u></a>'
+        for d, v in sorted(by_sector.items(), key=lambda kv: -len(kv[1])))
+    cnt_dl = "".join(
+        f'<a href="/export/country-{c}.csv"><b>{esc(c)}</b>'
+        f'<i>{esc(meta.country_name(c))}</i><u>{len(v):,} rows</u></a>'
+        for c, v in sorted(by_country.items(), key=lambda kv: -len(kv[1])))
+    export_body = f"""<h1>Every open EU tender, as a spreadsheet</h1>
+<p class="sub">One row per open call for tenders, with the deadline, the buyer, the CPV
+code and a link to the official notice. Plain CSV, UTF-8, opens in Excel, Numbers,
+LibreOffice or pandas. Rebuilt every morning from the EU Official Journal.
+Free, no sign-up, and you may re-use it &mdash; it is public data.</p>
+<div class="cpv">
+<a href="/export/all-open-tenders.csv"><b>everything</b>
+<i>All {len(rows):,} open tenders across the EU</i><u>{kb('/export/all-open-tenders.csv'):,} KB</u></a>
+</div>
+<h2>The columns</h2>
+<div class="desc"><code>{esc(", ".join(CSV_COLS))}</code></div>
+<h2>By sector</h2><div class="cpv">{sec_dl}</div>
+<h2>By country</h2><div class="cpv">{cnt_dl}</div>
+<div class="note"><h2>Prefer JSON?</h2>
+<p>The same data is available as an API with no key and no rate limit.</p>
+<a class="btn" href="/api.html">API documentation</a></div>"""
+    write("/export.html", page(f"Open EU tenders as CSV | {BRAND}", export_body,
+          desc=f"Download all {len(rows):,} open EU public tenders as a CSV "
+               f"spreadsheet, by sector or by country. Free, rebuilt daily.",
+          canonical="/export.html"))
+    urls.append("/export.html")
+
     # ---- public JSON API ------------------------------------------------
     # GitHub Pages serves these with Access-Control-Allow-Origin: *, so they
     # are usable straight from a browser with no key and no proxy. Documented
@@ -814,23 +878,40 @@ document.getElementById('fc').addEventListener('change',run);
 document.getElementById('fs').addEventListener('change',run)});});
 </script>"""
 
-ALERTS_BODY = f"""<h1>Daily tender alerts</h1>
-<p class="sub">Checking a procurement portal every morning is the part nobody actually
-does. These alerts do it for you.</p>
-<h2>Free — RSS, right now</h2>
-<p>Every sector and every country page has its own RSS feed. Drop it into your
-reader, your Slack, or your Teams channel and you get new tenders as they are published.
-No sign-up, no email address, nothing to cancel.</p>
-<p><a href="/sectors.html">Pick your sector &rarr;</a></p>
-<div class="note"><h2>Pro — the email version</h2>
-<p>One email each morning with only the new tenders that match your keywords,
-CPV codes and countries &mdash; plus CSV export and the full 12-month archive.
-Currently in private beta.</p>
-<p><a class="btn" href="{CFG['alerts_url'] or '#'}">Join the beta list</a></p></div>
+ALERTS_BODY = f"""<h1>Following tenders without checking a website</h1>
+<p class="sub">Nobody actually opens a procurement portal every morning. These are the
+ways to have the new tenders come to you instead.</p>
+
+<h2>RSS, per sector and per country</h2>
+<p>Every sector page and every country page has its own feed. Put it in your reader,
+your Slack, or your Teams channel, and new tenders arrive as they are published.
+No sign-up, no email address, nothing to cancel, and nothing about you is recorded
+&mdash; we never learn that you subscribed.</p>
+<p><a href="/sectors.html">Pick a sector &rarr;</a> &nbsp;
+<a href="/countries.html">Pick a country &rarr;</a></p>
+
+<h2>Spreadsheets</h2>
+<p>Every sector and country is also a CSV you can open in Excel or drop into your own
+system: one row per open tender, with the deadline, the buyer, the CPV code and the link
+to the official notice. Rebuilt every morning, same as the pages.</p>
+<p><a href="/export.html">Download a spreadsheet &rarr;</a></p>
+
+<h2>The API</h2>
+<p>If you would rather wire it into something yourself, the whole index is JSON, with no
+key and no rate limit.</p>
+<p><a href="/api.html">Read the API documentation &rarr;</a></p>
+
+<div class="note"><h2>What about email?</h2>
+<p>There is no email list, and there is nothing here to sign up to. Running one means
+holding your address, which means being a data controller, and we would rather point you
+at a feed that needs none of that. If that changes, the
+<a href="/privacy.html">privacy page</a> will say so before a single address is
+collected &mdash; not after.</p></div>
+
 <h2>Why this exists</h2>
-<p>EU tender data is public and free, but it is published in a format built for
-lawyers, not for the small companies that could win the work. {BRAND} does one thing:
-it takes that firehose and makes it readable, searchable and pushable.</p>"""
+<p>EU tender data is public and free, but it is published in a form built for lawyers,
+not for the small companies that could win the work. {BRAND} does one thing: it takes
+that firehose and makes it readable, searchable, and pushable.</p>"""
 
 API_BODY = f"""<h1>A free API for open EU tenders</h1>
 <p class="sub">Every page on this site is also a JSON endpoint. No key, no sign-up, no
