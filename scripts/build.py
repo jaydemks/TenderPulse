@@ -23,6 +23,7 @@ NOW = datetime.now(timezone.utc)
 # GitHub Pages serves project sites under /<repo>/, so every in-page link
 # needs that prefix. Derived from SITE_URL; empty for a root domain.
 PREFIX = urlparse(BASE).path.rstrip("/") if BASE else ""
+ARCHIVE_DAYS = int(CFG.get("archive_days") or 90)
 
 CSS = """
 :root{
@@ -99,6 +100,9 @@ h2{font-family:"IBM Plex Sans",sans-serif;font-size:12px;font-weight:600;
 .cpv u{text-decoration:none;font-family:"IBM Plex Mono",monospace;font-size:12px;
   color:var(--mut);white-space:nowrap}
 .cpv em{font-style:normal;background:var(--seal-soft);border-radius:2px}
+.closed{display:inline-block;font-family:"IBM Plex Mono",monospace;font-size:11px;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--flag);
+  border:1px solid var(--flag);border-radius:2px;padding:2px 7px;margin-top:26px}
 @media(max-width:560px){.cpv a{grid-template-columns:1fr auto}.cpv b{grid-column:1/-1}}
 .index a{display:flex;align-items:baseline;gap:8px;padding:7px 0;
   border-bottom:1px dotted var(--line);color:var(--ink);font-size:14px}
@@ -210,7 +214,6 @@ def load():
                     continue
                 seen.add(rec["id"])
                 rows.append(rec)
-    rows = [r for r in rows if deadline_bits(r["d"])[1] >= 0]
     rows.sort(key=lambda r: r["d"])
     return rows
 
@@ -247,6 +250,20 @@ def main():
         shutil.rmtree(OUT)
     os.makedirs(OUT, exist_ok=True)
 
+    # A call that has closed keeps its page for ARCHIVE_DAYS instead of
+    # becoming a 404: the URL is already indexed, people go on searching for
+    # tenders after they close, and deleting the page throws away the only
+    # thing this site accumulates. Archived pages are marked as closed, kept
+    # out of every listing, and left out of the sitemap.
+    everything, rows, archive = rows, [], []
+    for n in everything:
+        d = deadline_bits(n["d"])[1]
+        if d >= 0:
+            rows.append(n)
+        elif d > -ARCHIVE_DAYS:
+            archive.append(n)
+    print(f"{len(rows)} open, {len(archive)} recently closed")
+
     by_country = defaultdict(list)
     by_sector = defaultdict(list)
     for n in rows:
@@ -257,33 +274,48 @@ def main():
     urls = ["/", "/sectors.html", "/countries.html", "/alerts.html", "/about.html"]
 
     # ---- notice pages -------------------------------------------------
-    for n in rows:
+    for n, closed in [(x, False) for x in rows] + [(x, True) for x in archive]:
         dl, days = deadline_bits(n["d"])
         cpv_links = ", ".join(
             f'<a href="/s/{c}.html">{esc(meta.cpv_label(c))}</a>'
             for c in n.get("cpv", []))
         desc = (f'<div class="desc">{esc(n["desc"])}</div>' if n.get("desc") else "")
+        div = (n.get("cpv") or ["00"])[0]
+        if closed:
+            lede = (f'<p class="sub"><b>This call has closed.</b> The deadline for '
+                    f'submissions was {esc(dl)}. The page is kept as a record; for '
+                    f'contracts still accepting bids, see '
+                    f'<a href="/s/{esc(div)}.html">{esc(meta.cpv_label(div))}</a>.</p>')
+            follow = (f'<div class="note"><h2>Looking for something like this?</h2>'
+                      f'<p>{esc(meta.cpv_label(div))} tenders that are still open are '
+                      f'listed here, and refreshed every morning.</p>'
+                      f'<a class="btn" href="/s/{esc(div)}.html">Open tenders in this sector</a></div>')
+        else:
+            lede = (f'<p class="sub">Open call for tenders published in the EU Official '
+                    f'Journal. {("Closes in %d days." % days) if 0 <= days < 400 else ""}</p>')
+            follow = ('<div class="note"><h2>Rather not check this page every morning?</h2>'
+                      '<p>Get the new tenders that match your sector and country in one '
+                      'daily email.</p>'
+                      '<a class="btn" href="/alerts.html">Set up alerts</a></div>')
         body = f"""<div class="detail">
 <div class="crumb"><a href="/">Home</a> / <a href="/c/{esc(n.get('c'))}.html">{esc(meta.country_name(n.get('c')))}</a></div>
+{'<p class="closed">Closed</p>' if closed else ''}
 <h1>{esc(n['t'])}</h1>
-<p class="sub">Open call for tenders published in the EU Official Journal.
-{('Closes in %d days.' % days) if 0 <= days < 400 else ''}</p>
+{lede}
 {desc}
 <dl>
 <dt>Buyer</dt><dd>{esc(n.get('b')) or '&mdash;'}</dd>
 <dt>Country</dt><dd><a href="/c/{esc(n.get('c'))}.html">{esc(meta.country_name(n.get('c')))}</a></dd>
-<dt>Submission deadline</dt><dd class="{'due' if days<=7 else ''}">{esc(dl) or '&mdash;'}</dd>
+<dt>Submission deadline</dt><dd class="{'due' if 0 <= days <= 7 else ''}">{esc(dl) or '&mdash;'}</dd>
 <dt>Contract type</dt><dd>{esc(meta.CONTRACT_NATURE.get(n.get('nat'), n.get('nat') or '&mdash;'))}</dd>
 <dt>Sector (CPV)</dt><dd>{cpv_links or '&mdash;'}</dd>
-<dt>Main CPV code</dt><dd>{esc(n.get('cpvf')) or '&mdash;'}</dd>
+<dt>Main CPV code</dt><dd>{f'<a href="/cpv/{esc(n["cpvf"])}.html">{esc(n["cpvf"])}</a>' if n.get('cpvf') else '&mdash;'}</dd>
 <dt>Place of performance</dt><dd>{esc(n.get('nuts')) or '&mdash;'}</dd>
 <dt>Published</dt><dd>{esc(n.get('p'))}</dd>
 <dt>TED reference</dt><dd>{esc(n['id'])}</dd>
 </dl>
 <p><a class="btn" href="https://ted.europa.eu/en/notice/-/detail/{esc(n['id'])}" rel="nofollow noopener" target="_blank">Read the official notice on TED &rarr;</a></p>
-<div class="note"><h2>Don't want to check this page every morning?</h2>
-<p>Get the new tenders that match your sector and country in one daily email.</p>
-<a class="btn" href="/alerts.html">Set up alerts</a></div>
+{follow}
 </div>"""
         ld = json.dumps({
             "@context": "https://schema.org", "@type": "GovernmentService",
@@ -295,11 +327,14 @@ def main():
             "url": f"{BASE}/n/{n['id']}.html" if BASE else "",
         }, ensure_ascii=False)
         write(f"/n/{n['id']}.html",
-              page(f"{n['t'][:110]} | {BRAND}", body,
+              page(f"{'Closed: ' if closed else ''}{n['t'][:110]} | {BRAND}", body,
                    extra_head=f'<script type="application/ld+json">{ld}</script>',
-                   desc=f"{meta.country_name(n.get('c'))}: {n['t'][:130]}. Deadline {dl}.",
+                   desc=(f"Closed call: {n['t'][:120]}. The deadline was {dl}." if closed
+                         else f"{meta.country_name(n.get('c'))}: {n['t'][:130]}. Deadline {dl}."),
                    canonical=f"/n/{n['id']}.html"))
-        urls.append(f"/n/{n['id']}.html")
+        if not closed:
+            urls.append(f"/n/{n['id']}.html")
+
 
     # ---- sector pages -------------------------------------------------
     for d, items in sorted(by_sector.items()):
@@ -381,6 +416,11 @@ watch the whole single market instead of one national portal.</p></div>
     urls.append("/cpv.html")
 
     # ---- one page per code that has something open ----------------------
+    # Every open call has a main CPV code, so paginating these pages is what
+    # makes the whole store reachable by following links. Left unpaginated,
+    # two thirds of the notices are in the sitemap and nowhere else, and a
+    # site with no authority does not get those crawled.
+    PER = 100
     for code, items in sorted(by_code.items()):
         label = meta.cpv_name(code)
         div = code[:2]
@@ -389,9 +429,29 @@ watch the whole single market instead of one national portal.</p></div>
                     if k and meta.cpv_group(c) == group and c != code][:14]
         sib = "".join(f'<a href="/cpv/{c}.html"><b>{esc(c)}</b><i>{esc(lbl)}</i></a>'
                       for c, lbl in siblings)
-        cards = "".join(card(n) for n in items[:120])
         countries = sorted({meta.country_name(n.get("c")) for n in items})
-        body = f"""<div class="crumb"><a href="/">Home</a> / <a href="/cpv.html">CPV codes</a>
+        pages = max(1, -(-len(items) // PER))
+        for pg in range(1, pages + 1):
+            slice_ = items[(pg - 1) * PER: pg * PER]
+            path = f"/cpv/{code}.html" if pg == 1 else f"/cpv/{code}-{pg}.html"
+            nav = ""
+            if pages > 1:
+                prev_ = ("" if pg == 1 else
+                         f'<a href="/cpv/{code}.html">&larr; first</a> '
+                         if pg == 2 else
+                         f'<a href="/cpv/{code}-{pg-1}.html">&larr; previous</a> ')
+                next_ = ("" if pg == pages else
+                         f'<a href="/cpv/{code}-{pg+1}.html">next &rarr;</a>')
+                nav = (f'<p class="sub">Page {pg} of {pages} &middot; {prev_}{next_}</p>')
+            head_extra = ""
+            if pages > 1:
+                if pg > 1:
+                    p_url = (f"{BASE}/cpv/{code}.html" if pg == 2
+                             else f"{BASE}/cpv/{code}-{pg-1}.html")
+                    head_extra += f'<link rel="prev" href="{p_url}">'
+                if pg < pages:
+                    head_extra += f'<link rel="next" href="{BASE}/cpv/{code}-{pg+1}.html">'
+            body = f"""<div class="crumb"><a href="/">Home</a> / <a href="/cpv.html">CPV codes</a>
  / <a href="/s/{esc(div)}.html">{esc(meta.cpv_label(div))}</a></div>
 <h1>CPV {esc(code)} &mdash; {esc(label)}</h1>
 <p class="sub">{len(items)} open call{'s' if len(items) != 1 else ''} for tenders across the
@@ -405,18 +465,22 @@ rebuilt every day from the EU Official Journal.</p>
 <dt>Open tenders</dt><dd>{len(items)}</dd>
 <dt>Countries</dt><dd>{esc(", ".join(countries)) or '&mdash;'}</dd>
 </dl>
-{cards}
-{f'<h2>Related codes in group {esc(group)}</h2><div class="cpv">{sib}</div>' if sib else ''}
+{nav}
+{"".join(card(n) for n in slice_)}
+{nav}
+{f'<h2>Related codes in group {esc(group)}</h2><div class="cpv">{sib}</div>' if sib and pg == 1 else ''}
 <div class="note"><h2>Follow this code</h2>
 <p>New tenders under {esc(code)} appear here the morning they are published.
 The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
 <a class="btn" href="/feed/s-{esc(div)}.xml">RSS for this sector</a></div>"""
-        write(f"/cpv/{code}.html",
-              page(f"CPV {code}: {label} — open EU tenders | {BRAND}", body,
-                   desc=f"{len(items)} open EU public tenders under CPV code {code} "
-                        f"({label}). Updated daily.",
-                   canonical=f"/cpv/{code}.html"))
-        urls.append(f"/cpv/{code}.html")
+            title = (f"CPV {code}: {label} — open EU tenders | {BRAND}" if pg == 1
+                     else f"CPV {code}: {label} — page {pg} | {BRAND}")
+            write(path, page(title, body, extra_head=head_extra,
+                             desc=f"{len(items)} open EU public tenders under CPV code "
+                                  f"{code} ({label}). Updated daily.",
+                             canonical=path))
+            urls.append(path)
+
 
     # ---- index pages --------------------------------------------------
     sec_grid = "".join(

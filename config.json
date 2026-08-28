@@ -5,5 +5,6 @@
   "alerts_url": "",
   "pro_url": "",
   "contact_email": "",
-  "indexnow_key": "1eb8f5c92a2bc2aff65ca9daa11eaf41"
+  "indexnow_key": "1eb8f5c92a2bc2aff65ca9daa11eaf41",
+  "archive_days": 90
 }
