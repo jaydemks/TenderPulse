@@ -668,6 +668,11 @@ Free, no sign-up, and you may re-use it &mdash; it is public data.</p>
 <div class="desc"><code>{esc(", ".join(CSV_COLS))}</code></div>
 <h2>By sector</h2><div class="cpv">{sec_dl}</div>
 <h2>By country</h2><div class="cpv">{cnt_dl}</div>
+<div class="note"><h2>Looking for who <i>won</i>, not who is buying?</h2>
+<p>Open tenders are one half of the record. The other half — every contract
+award published in the Official Journal, with the winning company and the value
+in euro — is a separate dataset of 374,443 rows, free to download and re-use.</p>
+<a class="btn" href="{CFG['dataset_url']}" rel="noopener">Contract awards dataset &rarr;</a></div>
 <div class="note"><h2>Prefer JSON?</h2>
 <p>The same data is available as an API with no key and no rate limit.</p>
 <a class="btn" href="/api.html">API documentation</a></div>"""
@@ -977,6 +982,12 @@ European Commission's open data policy; it stays free under the same terms. Attr
 is appreciated but not required. There is no uptime guarantee and no support &mdash; it is
 a static file on GitHub Pages. If you build something with it,
 <a href="https://github.com/jaydemks/TenderPulse">the code is here</a>.</p>
+
+<div class="note"><h2>The awards, as a dataset</h2>
+<p>This API covers what is open. What was already won &mdash; 374,443 contract
+awards with the winning company and the value converted to euro &mdash; is
+published as a dataset on Hugging Face, free and re-usable.</p>
+<p><a href="{CFG['dataset_url']}" rel="noopener">huggingface.co/datasets/jaydem/eu-contract-awards</a></p></div>
 
 <div class="note"><h2>Want the tenders, not the JSON?</h2>
 <p>Every sector and country page has an RSS feed, and the daily email lands in your

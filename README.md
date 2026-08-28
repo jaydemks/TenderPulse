@@ -57,6 +57,23 @@ https://jaydemks.github.io/TenderPulse/api.html
 There is no query language — it is a static site, so you fetch a collection and filter it
 yourself. Everything is rebuilt once a day; cache it rather than polling.
 
+## The contract awards dataset
+
+Open tenders are half the record. The other half is who won them. Every contract
+award published in the Official Journal over the last twelve months — 374,443 of
+them, with the winning company, the buyer, the sector and the value converted to
+euro at the ECB rate of the day — is published as a free dataset:
+
+**https://huggingface.co/datasets/jaydem/eu-contract-awards**
+
+It is built by `scripts/awards.py`, `scripts/enrich_awards.py` and
+`scripts/export_awards.py` from the same TED API this site uses, asked with
+`scope: ALL` so it returns the past rather than only what is open. The dataset
+card documents the three traps in the source data — framework ceilings that make
+cross-country sums meaningless, TED's `-1` sentinel for "not disclosed", and 168
+values that are plainly typing mistakes — because a number quoted from this
+without knowing them is a wrong number.
+
 ## The CPV vocabulary, as actually used
 
 `scripts/cpv_labels.json` is the whole Common Procurement Vocabulary — all 9,454 codes
