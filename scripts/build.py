@@ -160,6 +160,13 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <meta name="description" content="{esc(desc)}">
 {f'<meta name="google-site-verification" content="{esc(VERIFY)}">' if VERIFY else ''}
 {f'<link rel="canonical" href="{BASE}{canonical}">' if BASE and canonical else ''}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{esc(BRAND)}">
+<meta property="og:title" content="{esc(title)}">
+<meta property="og:description" content="{esc(desc)}">
+{f'<meta property="og:url" content="{BASE}{canonical}">' if BASE and canonical else ''}
+{f'<meta property="og:image" content="{BASE}/brand/og.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{BASE}/brand/og.png">' if BASE else ''}
+<link rel="icon" href="/brand/avatar.png" type="image/png">
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
@@ -806,6 +813,8 @@ No dashboard to remember, no account to create.</p>
     write("/style.css", faces + CSS)
     shutil.copytree(os.path.join(ROOT, "assets", "fonts"),
                     os.path.join(OUT, "fonts"), dirs_exist_ok=True)
+    shutil.copytree(os.path.join(ROOT, "assets", "brand"),
+                    os.path.join(OUT, "brand"), dirs_exist_ok=True)
     write("/.nojekyll", "")
 
     # ---- IndexNow ------------------------------------------------------
