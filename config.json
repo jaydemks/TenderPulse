@@ -1,7 +1,7 @@
 {
   "brand": "TenderPulse",
   "tagline": "Every open EU public tender, in one place, updated daily.",
-  "base_url": "",
+  "base_url": "https://jaydemks.github.io/TenderPulse",
   "alerts_url": "",
   "pro_url": "",
   "contact_email": ""
