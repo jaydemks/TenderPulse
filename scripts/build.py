@@ -24,6 +24,8 @@ NOW = datetime.now(timezone.utc)
 # needs that prefix. Derived from SITE_URL; empty for a root domain.
 PREFIX = urlparse(BASE).path.rstrip("/") if BASE else ""
 ARCHIVE_DAYS = int(CFG.get("archive_days") or 90)
+# Search Console verification: the token from the "HTML tag" method.
+VERIFY = (CFG.get("google_site_verification") or "").strip()
 
 CSS = """
 :root{
@@ -152,6 +154,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
+{f'<meta name="google-site-verification" content="{esc(VERIFY)}">' if VERIFY else ''}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
