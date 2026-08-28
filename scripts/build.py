@@ -7,7 +7,7 @@ import re
 import shutil
 from urllib.parse import urlparse
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import meta
 
@@ -384,6 +384,29 @@ No dashboard to remember, no account to create.</p>
           f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{smap}</urlset>')
     write("/style.css", CSS)
     write("/.nojekyll", "")
+
+    # ---- IndexNow ------------------------------------------------------
+    # Search engines that support IndexNow (Bing, Yandex, Seznam, Naver) are
+    # told about the day's new notices instead of waiting for a crawl. The key
+    # file proves we own the site. The request body is written ready to POST;
+    # the workflow sends it after the deploy, so the pages are already live.
+    key = CFG.get("indexnow_key") or ""
+    if key and BASE:
+        write(f"/{key}.txt", key)
+        cutoff = (NOW.date() - timedelta(days=2)).isoformat()
+        fresh = ["/", "/sectors.html", "/countries.html"]
+        fresh += [f"/n/{n['id']}.html" for n in rows if (n.get("p") or "") >= cutoff]
+        fresh = fresh[:9000]
+        body = {
+            "host": urlparse(BASE).netloc,
+            "key": key,
+            "keyLocation": f"{BASE}/{key}.txt",
+            "urlList": [BASE + u for u in fresh],
+        }
+        with open(os.path.join(ROOT, "indexnow.json"), "w", encoding="utf-8") as f:
+            json.dump(body, f, ensure_ascii=False)
+        print(f"indexnow: {len(fresh)} urls published since {cutoff}")
+
     print(f"wrote {len(urls)} pages to {OUT}")
 
 

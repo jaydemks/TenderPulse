@@ -71,6 +71,14 @@ jobs:
         with:
           path: site
 
+      - name: Keep the IndexNow request for after the deploy
+        uses: actions/upload-artifact@v4
+        with:
+          name: indexnow
+          path: indexnow.json
+          if-no-files-found: ignore
+          retention-days: 1
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -80,3 +88,27 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  notify:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - id: get
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: indexnow
+
+      - name: Tell IndexNow about the new notices
+        if: steps.get.outcome == 'success'
+        run: |
+          set -eu
+          n=$(jq '.urlList | length' indexnow.json)
+          echo "submitting $n URLs"
+          code=$(curl -sS -o response.txt -w '%{http_code}' -X POST             -H 'Content-Type: application/json; charset=utf-8'             --data-binary @indexnow.json             https://api.indexnow.org/indexnow)
+          echo "IndexNow replied $code"
+          cat response.txt || true
+          case "$code" in
+            200|202) ;;
+            *) echo "::warning::IndexNow returned $code" ;;
+          esac
