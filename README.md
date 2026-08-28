@@ -59,11 +59,21 @@ yourself. Everything is rebuilt once a day; cache it rather than polling.
 
 ## The CPV vocabulary, as actually used
 
-`scripts/cpv_labels.json` maps every CPV code that TED has actually published a notice
-under to its official English label — 3,365 of them at the time of writing. It is
-harvested from the notice titles, which carry the authoritative label for each notice's
-main code. The official vocabulary is a spreadsheet on SIMAP; this is the working subset,
-in JSON, and it is regenerated as new codes appear.
+`scripts/cpv_labels.json` is the whole Common Procurement Vocabulary — all 9,454 codes
+with their official English labels — as JSON, keyed by the eight-digit code without the
+check digit.
+
+It comes from the European Commission's own spreadsheet, `cpv_2008_ver_2013.xlsx`. That
+file used to sit on SIMAP, which has since been retired, so it is no longer downloadable
+from the URL most references still cite. The copy used here was cross-checked against the
+3,365 codes that TED has actually published notices under, whose labels can be read
+straight out of the notice titles: all 3,365 match the spreadsheet exactly, and none is
+missing from it.
+
+The site does not build a page for every code. Only the codes with tenders open against
+them get one; the rest are answered by the explorer at `/cpv.html`, which searches the
+full vocabulary in the browser. Thousands of near-empty pages would cost more in crawl
+budget than they could ever return.
 
 ## Running it locally
 

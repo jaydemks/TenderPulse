@@ -464,9 +464,10 @@ sorted by closing date. Updated daily from the EU Official Journal.</p>
         f'<a href="/s/{d}.html"><i>{esc(meta.cpv_label(d))}</i><u>{len(v)}</u></a>'
         for d, v in sorted(by_sector.items(), key=lambda kv: kv[0]))
     cpv_body = f"""<h1>CPV code explorer</h1>
-<p class="sub">Every Common Procurement Vocabulary code in use across the EU Official
-Journal &mdash; {len(cpv_rows):,} of them &mdash; searchable by code or by what it
-means, each showing how many tenders are open against it right now.</p>
+<p class="sub">The whole Common Procurement Vocabulary &mdash; all
+{len(cpv_rows):,} codes, straight from the European Commission's own list &mdash;
+searchable by code or by what it means. {live_codes:,} of them have tenders open right
+now; those link through to the contracts.</p>
 <input id="q" type="search" autocomplete="off"
  placeholder="Search a code or a description &mdash; e.g. 45000000, catering, servers, asphalt&hellip;">
 <div id="res"></div>
@@ -841,8 +842,9 @@ function draw(list,t){if(!list.length){res.innerHTML='<p class="sub">No CPV code
 var more=list.length>400?list.length-400:0;
 res.innerHTML='<h2>'+list.length+' matching code'+(list.length==1?'':'s')+'</h2><div class="cpv">'+
 list.slice(0,400).map(function(r){
-return '<a href="/cpv/'+r[0]+'.html"><b>'+mark(r[0],t)+'</b><i>'+mark(r[1],t)+'</i><u>'+
-(r[2]?r[2]+(r[2]==1?' open':' open'):'&mdash;')+'</u></a>'}).join('')+'</div>'+
+var open=r[2];
+return (open?'<a href="/cpv/'+r[0]+'.html">':'<a>')+'<b>'+mark(r[0],t)+'</b><i>'+
+mark(r[1],t)+'</i><u>'+(open?open+' open':'none open')+'</u></a>'}).join('')+'</div>'+
 (more?'<p class="sub">'+more+' more &mdash; narrow the search to see them.</p>':'')}
 function run(){var t=q.value.trim().toLowerCase();
 if(!t){res.innerHTML='';return}
