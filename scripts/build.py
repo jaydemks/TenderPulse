@@ -159,7 +159,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
-<a href="/cpv.html">CPV codes</a>
+<a href="/cpv.html">CPV codes</a><a href="/api.html">API</a>
 <a href="/alerts.html">Daily alerts</a><a href="/about.html">About</a></nav></div></header>
 <div class="wrap">{body}</div>
 <footer><div class="wrap">
@@ -504,6 +504,57 @@ The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
            for n in rows]
     write("/api/index.json", json.dumps(idx, ensure_ascii=False, separators=(",", ":")))
 
+    # ---- public JSON API ------------------------------------------------
+    # GitHub Pages serves these with Access-Control-Allow-Origin: *, so they
+    # are usable straight from a browser with no key and no proxy. Documented
+    # on /api.html; the shapes below are the contract.
+    def api_notice(n):
+        return {
+            "id": n["id"],
+            "title": n.get("t"),
+            "buyer": n.get("b"),
+            "country": n.get("c"),
+            "country_name": meta.country_name(n.get("c")),
+            "cpv_divisions": n.get("cpv", []),
+            "cpv_main": n.get("cpvf"),
+            "cpv_main_label": meta.cpv_name(n.get("cpvf")) if n.get("cpvf") else None,
+            "contract_nature": n.get("nat"),
+            "place_of_performance": n.get("nuts"),
+            "published": n.get("p"),
+            "deadline": n.get("d"),
+            "url": f"{BASE}/n/{n['id']}.html",
+            "ted_url": f"https://ted.europa.eu/en/notice/-/detail/{n['id']}",
+        }
+
+    def api(path, obj):
+        write(path, json.dumps(obj, ensure_ascii=False, separators=(",", ":")))
+
+    api("/api/stats.json", {
+        "generated": NOW.isoformat(timespec="seconds"),
+        "open_notices": len(rows),
+        "archived_notices": len(archive),
+        "countries": len(by_country),
+        "sectors": len(by_sector),
+        "cpv_codes_in_use": len(by_code),
+        "source": "Tenders Electronic Daily (TED), European Union",
+        "licence": "European Commission open data policy",
+        "docs": f"{BASE}/api.html",
+    })
+    api("/api/countries.json", [
+        {"code": c, "name": meta.country_name(c), "open_notices": len(v),
+         "notices_url": f"{BASE}/api/c/{c}.json"}
+        for c, v in sorted(by_country.items(), key=lambda kv: -len(kv[1]))])
+    api("/api/sectors.json", [
+        {"division": d, "label": meta.cpv_label(d), "open_notices": len(v),
+         "notices_url": f"{BASE}/api/s/{d}.json"}
+        for d, v in sorted(by_sector.items(), key=lambda kv: -len(kv[1]))])
+    for c, items in by_country.items():
+        api(f"/api/c/{c}.json", [api_notice(n) for n in items])
+    for d, items in by_sector.items():
+        api(f"/api/s/{d}.json", [api_notice(n) for n in items])
+
+
+
     closing = sorted(rows, key=lambda r: r["d"])[:12]
     home = f"""<h1>Every open EU public tender, in one place.</h1>
 <p class="sub">{len(rows):,} live calls for tenders from {len(by_country)} countries,
@@ -531,6 +582,13 @@ No dashboard to remember, no account to create.</p>
     write("/alerts.html", page(f"Daily tender alerts | {BRAND}", ALERTS_BODY,
           desc="Get new EU public tenders matching your sector by email, every morning.",
           canonical="/alerts.html"))
+    write("/api.html", page(f"Free EU tenders API | {BRAND}",
+          API_BODY.replace("{ARCHIVE_DAYS}", str(ARCHIVE_DAYS)),
+          desc="A free, keyless JSON API of every open public tender in the EU, "
+               "rebuilt daily from the official TED data.",
+          canonical="/api.html"))
+    urls.append("/api.html")
+
     write("/about.html", page(f"About | {BRAND}", ABOUT_BODY,
           desc=f"What {BRAND} is, where the data comes from, and how often it updates.",
           canonical="/about.html"))
@@ -663,6 +721,65 @@ Currently in private beta.</p>
 <p>EU tender data is public and free, but it is published in a format built for
 lawyers, not for the small companies that could win the work. {BRAND} does one thing:
 it takes that firehose and makes it readable, searchable and pushable.</p>"""
+
+API_BODY = f"""<h1>A free API for open EU tenders</h1>
+<p class="sub">Every page on this site is also a JSON endpoint. No key, no sign-up, no
+rate limit, and <code>Access-Control-Allow-Origin: *</code> on everything &mdash; so you
+can call it straight from a browser. Rebuilt once a day from the EU Official Journal.</p>
+
+<h2>Endpoints</h2>
+<div class="cpv">
+<a href="/api/stats.json"><b>/api/stats.json</b><i>Counts and build time</i></a>
+<a href="/api/countries.json"><b>/api/countries.json</b><i>Countries, with open tender counts</i></a>
+<a href="/api/sectors.json"><b>/api/sectors.json</b><i>The 45 CPV divisions, with counts</i></a>
+<a href="/api/cpv.json"><b>/api/cpv.json</b><i>Every CPV code in use: [code, label, open]</i></a>
+<a href="/api/c/ITA.json"><b>/api/c/&lt;ISO3&gt;.json</b><i>Open tenders in one country</i></a>
+<a href="/api/s/45.json"><b>/api/s/&lt;division&gt;.json</b><i>Open tenders in one CPV division</i></a>
+<a href="/api/index.json"><b>/api/index.json</b><i>Compact search index, all open tenders</i></a>
+</div>
+
+<h2>A notice looks like this</h2>
+<div class="desc"><code>{{
+  "id": "533447-2026",
+  "title": "Germany &ndash; Cleaning services &ndash; Unterhaltsreinigung",
+  "buyer": "Landkreis Marburg-Biedenkopf",
+  "country": "DEU",
+  "country_name": "Germany",
+  "cpv_divisions": ["90"],
+  "cpv_main": "90910000",
+  "cpv_main_label": "Cleaning services",
+  "contract_nature": "services",
+  "place_of_performance": "DE724",
+  "published": "2026-08-03",
+  "deadline": "2026-09-15T10:15:00+02:00",
+  "url": "&hellip;/n/533447-2026.html",
+  "ted_url": "https://ted.europa.eu/en/notice/-/detail/533447-2026"
+}}</code></div>
+
+<h2>Try it</h2>
+<div class="desc"><code>curl -s {BASE}/api/sectors.json | jq '.[0]'
+
+# every open construction tender in Italy
+curl -s {BASE}/api/c/ITA.json | jq '[.[] | select(.cpv_divisions[]=="45")] | length'</code></div>
+
+<h2>The catch</h2>
+<p>It is a static site, so there is no query language: you fetch a whole collection and
+filter it yourself. The largest file is <code>/api/index.json</code>, a few megabytes.
+Everything is regenerated once a day, so cache it rather than polling.</p>
+<p>Closed calls are dropped from the API the day their deadline passes, though their page
+is kept for {{ARCHIVE_DAYS}} days as a record.</p>
+
+<h2>Terms</h2>
+<p>The data comes from <a href="https://ted.europa.eu/">TED</a> and is re-used under the
+European Commission's open data policy; it stays free under the same terms. Attribution
+is appreciated but not required. There is no uptime guarantee and no support &mdash; it is
+a static file on GitHub Pages. If you build something with it,
+<a href="https://github.com/jaydemks/TenderPulse">the code is here</a>.</p>
+
+<div class="note"><h2>Want the tenders, not the JSON?</h2>
+<p>Every sector and country page has an RSS feed, and the daily email lands in your
+inbox instead.</p>
+<a class="btn" href="/alerts.html">Daily alerts</a></div>"""
 
 ABOUT_BODY = f"""<h1>About {BRAND}</h1>
 <p class="sub">{CFG['tagline']}</p>
