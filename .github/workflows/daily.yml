@@ -2,7 +2,11 @@ name: Daily sync and deploy
 
 on:
   schedule:
-    - cron: "17 5 * * *"   # every day at 05:17 UTC
+    # GitHub drops scheduled runs under load rather than queueing them, so ask
+    # twice. The build is idempotent: the second run of a quiet day just
+    # rebuilds the same pages.
+    - cron: "17 5 * * *"    # 05:17 UTC, after the morning TED publication
+    - cron: "37 13 * * *"   # 13:37 UTC, in case the first one never fires
   push:
     branches: [main]
     paths:
