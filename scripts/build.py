@@ -472,10 +472,42 @@ No dashboard to remember, no account to create.</p>
           canonical="/about.html"))
 
     write("/robots.txt", f"User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n")
-    smap = "".join(f"<url><loc>{BASE}{u}</loc><lastmod>{NOW.date()}</lastmod></url>"
-                   for u in urls)
-    write("/sitemap.xml",
-          f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{smap}</urlset>')
+    # ---- sitemap index --------------------------------------------------
+    # One file per section rather than one 3 MB blob: Search Console reports
+    # coverage per sitemap, so a section that stops being indexed shows up
+    # instead of being averaged away. Chunked well under the 50,000 URL limit.
+    def section(u):
+        for pre, name in (("/n/", "notices"), ("/cpv/", "cpv"),
+                          ("/s/", "sectors"), ("/c/", "countries")):
+            if u.startswith(pre):
+                return name
+        return "core"
+
+    groups = defaultdict(list)
+    for u in urls:
+        groups[section(u)].append(u)
+
+    parts = []
+    for name in ("core", "sectors", "countries", "cpv", "notices"):
+        chunk = groups.get(name) or []
+        for i in range(0, len(chunk), 10000):
+            piece = chunk[i:i + 10000]
+            fname = (f"/sitemap-{name}.xml" if len(chunk) <= 10000
+                     else f"/sitemap-{name}-{i // 10000 + 1}.xml")
+            body = "".join(
+                f"<url><loc>{BASE}{u}</loc><lastmod>{NOW.date()}</lastmod></url>"
+                for u in piece)
+            write(fname, '<?xml version="1.0" encoding="UTF-8"?>'
+                  '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+                  f'{body}</urlset>')
+            parts.append(fname)
+
+    write("/sitemap.xml", '<?xml version="1.0" encoding="UTF-8"?>'
+          '<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
+          + "".join(f"<sitemap><loc>{BASE}{f}</loc>"
+                    f"<lastmod>{NOW.date()}</lastmod></sitemap>" for f in parts)
+          + '</sitemapindex>')
+    print(f"sitemap: {len(urls)} urls across {len(parts)} files")
     write("/style.css", CSS)
     write("/.nojekyll", "")
 
