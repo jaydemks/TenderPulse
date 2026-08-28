@@ -93,3 +93,20 @@ def cpv_name(code):
 def cpv_group(code):
     """The 3-digit CPV group a code belongs to, e.g. 45210000 -> 452."""
     return (code or "")[:3]
+
+def cpv_parents(code):
+    """The broader CPV codes a code sits under, widest last.
+
+    CPV nests by position: 45233220 (surface work for roads) sits under
+    45233000, 45230000, 45200000 and finally 45000000, construction work.
+    Trailing zeros are what make a level broader.
+    """
+    code = (code or "").strip()
+    if len(code) != 8:
+        return []
+    out = []
+    for keep in (5, 4, 3, 2):
+        parent = code[:keep] + "0" * (8 - keep)
+        if parent != code and parent not in out:
+            out.append(parent)
+    return out

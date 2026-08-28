@@ -97,6 +97,8 @@ h2{font-family:"IBM Plex Sans",sans-serif;font-size:12px;font-weight:600;
 .cpv a{display:grid;grid-template-columns:96px 1fr auto;gap:8px 18px;align-items:baseline;
   padding:11px 4px;border-bottom:1px solid var(--line);color:var(--ink)}
 .cpv a:hover{background:var(--seal-soft);text-decoration:none}
+.cpv a:not([href]){color:var(--mut);cursor:default}
+.cpv a:not([href]):hover{background:none}
 .cpv b{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--seal)}
 .cpv i{font-style:normal}
 .cpv u{text-decoration:none;font-family:"IBM Plex Mono",monospace;font-size:12px;
@@ -430,6 +432,32 @@ watch the whole single market instead of one national portal.</p></div>
         sib = "".join(f'<a href="/cpv/{c}.html"><b>{esc(c)}</b><i>{esc(lbl)}</i></a>'
                       for c, lbl in siblings)
         countries = sorted({meta.country_name(n.get("c")) for n in items})
+        # The chain of broader codes, which is the thing a search for a bare
+        # CPV number is actually asking about. Levels that have open tenders
+        # of their own get linked; the rest are shown for context.
+        chain = []
+        for par in reversed(meta.cpv_parents(code)):
+            plabel = meta.cpv_name(par)
+            if par in by_code:
+                chain.append(f'<a href="/cpv/{par}.html"><b>{esc(par)}</b>'
+                             f'<i>{esc(plabel)}</i><u>{len(by_code[par])} open</u></a>')
+            else:
+                chain.append(f'<a><b>{esc(par)}</b><i>{esc(plabel)}</i><u>&mdash;</u></a>')
+        chain.append(f'<a><b>{esc(code)}</b><i>{esc(label)}</i>'
+                     f'<u>{len(items)} open</u></a>')
+        hier = (f'<h2>Where this code sits</h2><div class="cpv">{"".join(chain)}</div>'
+                if len(chain) > 1 else "")
+
+        # Who is buying under this code, which is the other half of the question.
+        per_country = defaultdict(int)
+        for n in items:
+            per_country[n.get("c") or "XXX"] += 1
+        cnt_rows = "".join(
+            f'<a href="/c/{c}.html"><b>{esc(c)}</b>'
+            f'<i>{esc(meta.country_name(c))}</i><u>{k}</u></a>'
+            for c, k in sorted(per_country.items(), key=lambda kv: -kv[1])[:20])
+        buyers = (f'<h2>Countries buying under {esc(code)}</h2>'
+                  f'<div class="cpv">{cnt_rows}</div>' if cnt_rows else "")
         pages = max(1, -(-len(items) // PER))
         for pg in range(1, pages + 1):
             slice_ = items[(pg - 1) * PER: pg * PER]
@@ -468,6 +496,8 @@ rebuilt every day from the EU Official Journal.</p>
 {nav}
 {"".join(card(n) for n in slice_)}
 {nav}
+{hier if pg == 1 else ''}
+{buyers if pg == 1 else ''}
 {f'<h2>Related codes in group {esc(group)}</h2><div class="cpv">{sib}</div>' if sib and pg == 1 else ''}
 <div class="note"><h2>Follow this code</h2>
 <p>New tenders under {esc(code)} appear here the morning they are published.
