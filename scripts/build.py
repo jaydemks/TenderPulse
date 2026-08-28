@@ -338,6 +338,74 @@ def main():
             urls.append(f"/n/{n['id']}.html")
 
 
+    # ---- country x sector ------------------------------------------------
+    # "construction tenders in Germany" is how buyers of this data actually
+    # search: a trade and a place, not a CPV number. One page per pairing that
+    # has enough open work to be worth reading.
+    COMBO_MIN, COMBO_PER = 5, 100
+    combos = defaultdict(list)
+    for n in rows:
+        for d in n.get("cpv", []):
+            combos[(n.get("c") or "XXX", d)].append(n)
+    combos = {k: v for k, v in combos.items() if len(v) >= COMBO_MIN}
+
+    def combo_path(c, d, pg=1):
+        stem = f"{slug(meta.country_name(c))}-{slug(meta.cpv_label(d))}"[:70].strip("-")
+        return f"/t/{stem}.html" if pg == 1 else f"/t/{stem}-{pg}.html"
+
+    combo_links = defaultdict(list)   # country -> rows, for the country pages
+    for (c, d), items in sorted(combos.items()):
+        cname, sname = meta.country_name(c), meta.cpv_label(d)
+        combo_links[c].append((d, sname, len(items)))
+        codes = defaultdict(int)
+        for n in items:
+            if n.get("cpvf"):
+                codes[n["cpvf"]] += 1
+        code_rows = "".join(
+            f'<a href="/cpv/{k}.html"><b>{esc(k)}</b>'
+            f'<i>{esc(meta.cpv_name(k))}</i><u>{v}</u></a>'
+            for k, v in sorted(codes.items(), key=lambda kv: -kv[1])[:20])
+        soon = sum(1 for n in items if 0 <= deadline_bits(n["d"])[1] <= 14)
+        pages = max(1, -(-len(items) // COMBO_PER))
+        for pg in range(1, pages + 1):
+            piece = items[(pg - 1) * COMBO_PER: pg * COMBO_PER]
+            nav = ""
+            if pages > 1:
+                bits = []
+                if pg > 1:
+                    bits.append(f'<a href="{combo_path(c, d, pg - 1)}">&larr; previous</a>')
+                if pg < pages:
+                    bits.append(f'<a href="{combo_path(c, d, pg + 1)}">next &rarr;</a>')
+                nav = f'<p class="sub">Page {pg} of {pages} &middot; {" &middot; ".join(bits)}</p>'
+            body = f"""<div class="crumb"><a href="/">Home</a>
+ / <a href="/c/{esc(c)}.html">{esc(cname)}</a>
+ / <a href="/s/{esc(d)}.html">{esc(sname)}</a></div>
+<h1>{esc(sname)} tenders in {esc(cname)}</h1>
+<p class="sub">{len(items)} open call{'s' if len(items) != 1 else ''} for tenders from
+contracting authorities in {esc(cname)}, classified under CPV division {esc(d)}
+&mdash; {esc(sname.lower())}.
+{f'{soon} of them close within a fortnight. ' if soon else ''}Sorted by closing date and
+rebuilt every morning from the EU Official Journal.</p>
+{nav}
+{"".join(card(n) for n in piece)}
+{nav}
+{f'<h2>The CPV codes used here</h2><div class="cpv">{code_rows}</div>' if code_rows and pg == 1 else ''}
+<div class="note"><h2>Get these by email</h2>
+<p>New {esc(sname.lower())} tenders in {esc(cname)}, in one message each morning,
+instead of checking this page.</p>
+<a class="btn" href="/alerts.html">Set up alerts</a>
+&nbsp;<a class="btn" href="/feed/s-{esc(d)}.xml">RSS for this sector</a></div>
+<p class="sub">See also: <a href="/c/{esc(c)}.html">every open tender in {esc(cname)}</a>
+&middot; <a href="/s/{esc(d)}.html">{esc(sname)} across the EU</a></p>"""
+            title = (f"{sname} tenders in {cname} | {BRAND}" if pg == 1
+                     else f"{sname} tenders in {cname} — page {pg} | {BRAND}")
+            path = combo_path(c, d, pg)
+            write(path, page(title, body, canonical=path,
+                             desc=f"{len(items)} open public tenders for {sname.lower()} "
+                                  f"in {cname}, updated daily from the EU Official Journal."))
+            urls.append(path)
+
+
     # ---- sector pages -------------------------------------------------
     for d, items in sorted(by_sector.items()):
         label = meta.cpv_label(d)
@@ -364,6 +432,8 @@ sorted by closing date. Updated daily from the EU Official Journal.</p>
 <p class="sub">{len(items)} open calls for tenders from contracting authorities in
 {esc(name)}, published in the EU Official Journal and sorted by closing date.</p>
 <p><a href="/feed/c-{esc(c)}.xml">RSS feed for {esc(name)}</a></p>
+{f'<h2>By sector in {esc(name)}</h2><div class="cpv">' + "".join(f'<a href="{combo_path(c, d)}"><b>{esc(d)}</b><i>{esc(lbl)}</i><u>{k}</u></a>' for d, lbl, k in sorted(combo_links.get(c, []), key=lambda t: -t[2])) + '</div>' if combo_links.get(c) else ''}
+<h2>All open tenders in {esc(name)}</h2>
 {cards}"""
         write(f"/c/{c}.html",
               page(f"Open public tenders in {name} | {BRAND}", body,
@@ -629,7 +699,7 @@ No dashboard to remember, no account to create.</p>
     # coverage per sitemap, so a section that stops being indexed shows up
     # instead of being averaged away. Chunked well under the 50,000 URL limit.
     def section(u):
-        for pre, name in (("/n/", "notices"), ("/cpv/", "cpv"),
+        for pre, name in (("/n/", "notices"), ("/cpv/", "cpv"), ("/t/", "trades"),
                           ("/s/", "sectors"), ("/c/", "countries")):
             if u.startswith(pre):
                 return name
@@ -640,7 +710,7 @@ No dashboard to remember, no account to create.</p>
         groups[section(u)].append(u)
 
     parts = []
-    for name in ("core", "sectors", "countries", "cpv", "notices"):
+    for name in ("core", "sectors", "countries", "trades", "cpv", "notices"):
         chunk = groups.get(name) or []
         for i in range(0, len(chunk), 10000):
             piece = chunk[i:i + 10000]
