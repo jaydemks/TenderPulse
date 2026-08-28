@@ -155,9 +155,6 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
 {f'<meta name="google-site-verification" content="{esc(VERIFY)}">' if VERIFY else ''}
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
 {f'<link rel="canonical" href="{BASE}{canonical}">' if BASE and canonical else ''}
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
@@ -633,7 +630,10 @@ No dashboard to remember, no account to create.</p>
                     f"<lastmod>{NOW.date()}</lastmod></sitemap>" for f in parts)
           + '</sitemapindex>')
     print(f"sitemap: {len(urls)} urls across {len(parts)} files")
-    write("/style.css", CSS)
+    faces = open(os.path.join(ROOT, "assets", "fonts.css"), encoding="utf-8").read()
+    write("/style.css", faces + CSS)
+    shutil.copytree(os.path.join(ROOT, "assets", "fonts"),
+                    os.path.join(OUT, "fonts"), dirs_exist_ok=True)
     write("/.nojekyll", "")
 
     # ---- IndexNow ------------------------------------------------------

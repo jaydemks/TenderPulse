@@ -92,9 +92,10 @@ and anything binding — specifications, annexes, exact deadlines — should be 
 TenderPulse is an independent project. It is not affiliated with, endorsed by, or
 operated by the European Union or by any contracting authority.
 
-The site sets no cookies, collects no personal data and has no analytics or
-tracking of any kind. The only third-party request a page makes is to Google Fonts
-for its two typefaces, which is on the list to remove by self-hosting them.
+The site sets no cookies, collects no personal data, has no analytics or tracking of
+any kind, and makes no third-party requests at all: the typefaces are served from this
+domain, so reading a page tells nobody but GitHub that you were here. The fonts are in
+`assets/fonts/` under the SIL Open Font License.
 
 ## Licence
 
