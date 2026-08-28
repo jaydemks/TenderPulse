@@ -168,6 +168,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 Data source: <a href="https://ted.europa.eu/">Tenders Electronic Daily (TED)</a>, the official
 journal of EU public procurement, re-used under the European Commission's open data policy.
 {BRAND} is an independent service and is not affiliated with the European Union.<br>
+<a href="/privacy.html">Privacy</a> &middot; <a href="/about.html">About</a> &middot; <a href="/api.html">API</a><br>
 Rebuilt automatically every day &middot; last update {NOW.strftime('%d %b %Y %H:%M UTC')}
 </div></footer></body></html>"""
 
@@ -689,6 +690,12 @@ No dashboard to remember, no account to create.</p>
           canonical="/api.html"))
     urls.append("/api.html")
 
+    write("/privacy.html", page(f"Privacy | {BRAND}", PRIVACY_BODY,
+          desc="This site sets no cookies, runs no analytics and makes no third-party "
+               "requests. What that means, in plain words.",
+          canonical="/privacy.html"))
+    urls.append("/privacy.html")
+
     write("/about.html", page(f"About | {BRAND}", ABOUT_BODY,
           desc=f"What {BRAND} is, where the data comes from, and how often it updates.",
           canonical="/about.html"))
@@ -883,6 +890,61 @@ a static file on GitHub Pages. If you build something with it,
 <p>Every sector and country page has an RSS feed, and the daily email lands in your
 inbox instead.</p>
 <a class="btn" href="/alerts.html">Daily alerts</a></div>"""
+
+CONTACT = (f'<a href="mailto:{CFG["contact_email"]}">{CFG["contact_email"]}</a>'
+           if CFG.get("contact_email") else
+           '<a href="https://github.com/jaydemks/TenderPulse/issues">an issue on the '
+           'repository</a>')
+
+PRIVACY_BODY = f"""<h1>Privacy</h1>
+<p class="sub">Short version: this site collects nothing about you. No cookies, no
+accounts, no analytics, no third-party requests of any kind. There is no banner to
+click because there is nothing to consent to.</p>
+
+<h2>What is stored on your device</h2>
+<p>Nothing. {BRAND} sets no cookies and writes nothing to local storage. The search box
+on the home page and the CPV explorer run entirely in your browser: they download a
+data file and filter it locally. What you type is never sent anywhere.</p>
+
+<h2>What is requested from other companies</h2>
+<p>Nothing. Every page loads only from this domain &mdash; the stylesheet, the data
+files and the typefaces are all served from here. There are no fonts from Google, no
+tag managers, no embedded videos, no social buttons, no trackers. Opening a page tells
+no third party that you did.</p>
+
+<h2>What the host can see</h2>
+<p>The site is a set of static files served by GitHub Pages. Like any web server,
+GitHub receives the requests your browser makes and may log them, including your IP
+address, for security and to run the service. That processing is GitHub's, under
+<a href="https://docs.github.com/site-policy/privacy-policies/github-privacy-statement"
+rel="nofollow noopener">their privacy statement</a>. We neither see nor keep those logs,
+and no analytics account is attached to this site.</p>
+
+<h2>The tender data</h2>
+<p>Every notice reproduced here comes from
+<a href="https://ted.europa.eu/">Tenders Electronic Daily</a>, the supplement to the
+Official Journal of the European Union, retrieved through its public API and re-used
+under the European Commission's open data policy. TED is the authoritative source and
+every page links back to the original notice.</p>
+<p>Notices name the contracting authority that published them, and their free-text
+descriptions occasionally mention an individual. That material is published by the
+European Union itself and is reproduced here unchanged. If a notice concerns you and you
+want it changed or removed, the correction has to be made at the source, on TED, because
+this site is rebuilt from it every day and would otherwise restore the old text. If you
+believe something here should not be shown, write to us at {CONTACT} and we will look
+at it.</p>
+
+<h2>If this ever changes</h2>
+<p>This page describes what the site does today, and today it collects nothing. If an
+email list or any other form of sign-up is ever added, it will be described here in full
+&mdash; who the controller is, the legal basis, how long anything is kept and how to get
+it deleted &mdash; <b>before</b> the first address is collected, not after. Nothing is
+gathered quietly in the meantime.</p>
+
+<h2>Getting in touch</h2>
+<p>Questions about any of this: {CONTACT}.</p>
+
+<p class="sub">Last reviewed {NOW.strftime('%d %B %Y')}.</p>"""
 
 ABOUT_BODY = f"""<h1>About {BRAND}</h1>
 <p class="sub">{CFG['tagline']}</p>
