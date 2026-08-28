@@ -12,6 +12,11 @@ import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
 
+_CFG_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                         "config.json")
+with open(_CFG_PATH, encoding="utf-8") as _f:
+    ARCHIVE_DAYS = int(json.load(_f).get("archive_days") or 90)
+
 API = "https://api.ted.europa.eu/v3/notices/search"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE_DIR = os.path.join(ROOT, "data", "notices")
@@ -205,11 +210,43 @@ def main():
     fresh = fetch_all()
     store = load_store()
     before = len(store)
+
+    # Nothing runs here by hand, so a bad day at the API must not be allowed to
+    # quietly wipe the store and publish an empty site. A pull that comes back
+    # with almost nothing is treated as a failure, and the previous store and
+    # the site already deployed from it are both left alone.
+    now = datetime.now(timezone.utc)
+
+    def still_open(rec):
+        try:
+            d = datetime.fromisoformat(rec["d"])
+        except (ValueError, KeyError, TypeError):
+            return False
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return d > now
+
+    # Compare like with like: the store also holds closed calls kept for the
+    # archive, and that share grows every day, so the yardstick has to be the
+    # open ones alone.
+    # Only a full pull can be judged against the whole store; a deliberately
+    # short window (WINDOW_DAYS=3, for trying things out) returns little by
+    # design and must not trip the guard.
+    full_pull = WINDOW_DAYS >= 14
+    open_before = sum(1 for v in store.values() if still_open(v))
+    if full_pull and open_before and len(fresh) < open_before * 0.4:
+        raise SystemExit(
+            f"aborting: the API returned {len(fresh)} notices against "
+            f"{open_before} open ones already held. Refusing to overwrite the "
+            f"store. Nothing was changed."
+        )
+
     new = [k for k in fresh if k not in store]
     store.update(fresh)
 
-    # Drop notices whose deadline has passed (keep the archive lean).
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    # Keep closed calls for as long as the site still publishes their page, so
+    # an indexed URL never turns into a 404. build.py reads the same setting.
+    cutoff = datetime.now(timezone.utc) - timedelta(days=ARCHIVE_DAYS)
     kept = {}
     for k, v in store.items():
         try:
@@ -221,9 +258,16 @@ def main():
         if d > cutoff:
             kept[k] = v
 
+    open_after = sum(1 for v in kept.values() if still_open(v))
+    if full_pull and open_before and open_after < open_before * 0.5:
+        raise SystemExit(
+            f"aborting: open notices would fall from {open_before} to "
+            f"{open_after}. That is not a normal day's expiry. Nothing was changed."
+        )
+
     save_store(kept)
     print(f"store: {before} -> {len(kept)}  (+{len(new)} new, "
-          f"{len(store) - len(kept)} expired)")
+          f"{len(store) - len(kept)} beyond the {ARCHIVE_DAYS}-day archive)")
     meta = {"generated": datetime.now(timezone.utc).isoformat(),
             "total": len(kept), "new": len(new)}
     with open(os.path.join(ROOT, "data", "last_run.json"), "w") as f:
