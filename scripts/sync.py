@@ -195,15 +195,33 @@ def save_store(store):
         shards.setdefault(shard_key(rec), []).append(rec)
     for name, recs in shards.items():
         recs.sort(key=lambda r: r["id"])
-        with open(os.path.join(STORE_DIR, f"{name}.jsonl"), "w", encoding="utf-8") as f:
-            for rec in recs:
-                f.write(json.dumps(rec, ensure_ascii=False, sort_keys=True) + "\n")
+        write_lines(os.path.join(STORE_DIR, f"{name}.jsonl"),
+                    (json.dumps(rec, ensure_ascii=False, sort_keys=True)
+                     for rec in recs))
     # remove shards that no longer hold anything
     for f in os.listdir(STORE_DIR):
         if f.endswith(".jsonl") and f[:-6] not in shards:
             os.remove(os.path.join(STORE_DIR, f))
     if os.path.exists(LEGACY):
         os.remove(LEGACY)
+
+
+def write_lines(path, lines):
+    """Write a data file so that an interrupted run cannot truncate it.
+
+    Everything here is unattended. A process killed halfway through rewriting
+    a month of the archive would leave a short file, and the records past the
+    cut would be gone for good — the archive is the one thing that cannot be
+    fetched again from TED. Writing beside the target and renaming means the
+    old file survives intact until the new one is complete.
+    """
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        for line in lines:
+            f.write(line + "\n")
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
 
 
 def archive_key(rec):
@@ -245,10 +263,9 @@ def archive(dropped):
         before = len(existing)
         existing.update(recs)
         added += len(existing) - before
-        with open(path, "w", encoding="utf-8") as f:
-            for rid in sorted(existing):
-                f.write(json.dumps(existing[rid], ensure_ascii=False,
-                                   sort_keys=True) + "\n")
+        write_lines(path, (json.dumps(existing[rid], ensure_ascii=False,
+                                      sort_keys=True)
+                           for rid in sorted(existing)))
     return added
 
 

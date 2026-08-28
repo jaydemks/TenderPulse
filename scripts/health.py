@@ -66,6 +66,23 @@ def main():
     check("CPV vocabulary loaded", stats["cpv_codes_in_use"] > 1000,
           f"{stats['cpv_codes_in_use']:,} codes in use")
 
+    # The archive only ever grows. A drop means something ate the history.
+    arch = stats.get("archived_notices", 0)
+    seen = 0
+    state = os.path.join(ROOT, "data", "health_seen.json")
+    if os.path.exists(state):
+        try:
+            seen = json.load(open(state, encoding="utf-8")).get("archived", 0)
+        except (ValueError, OSError):
+            seen = 0
+    check("archive has not shrunk", arch >= seen,
+          f"{arch:,} held, {seen:,} at the last check")
+    try:
+        json.dump({"archived": max(arch, seen), "at": stats["generated"]},
+                  open(state, "w", encoding="utf-8"))
+    except OSError:
+        pass
+
     _, home = get("/")
     home = home.decode("utf-8", "replace")
     check("stylesheet path is prefixed", f'href="{BASE_PATH}/style.css"' in home)

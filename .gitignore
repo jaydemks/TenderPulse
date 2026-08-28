@@ -2,3 +2,4 @@ __pycache__/
 *.pyc
 site/
 indexnow.json
+data/health_seen.json
