@@ -323,8 +323,11 @@ def main():
             f"{open_after}. That is not a normal day's expiry. Nothing was changed."
         )
 
-    # only once the run has been judged sane: nothing suspicious gets archived
-    added = archive([v for k, v in store.items() if k not in kept])
+    # Archive a call the day it closes, not the day it falls out of the site's
+    # window: the history is the asset, and waiting sixty days to write it down
+    # means a bad config or a bad night can lose it. archive() dedupes, so
+    # offering the same record again on every run costs nothing.
+    added = archive([v for v in store.values() if not still_open(v)])
 
     save_store(kept)
     print(f"store: {before} -> {len(kept)}  (+{len(new)} new, "
