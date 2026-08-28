@@ -90,6 +90,16 @@ h2{font-family:"IBM Plex Sans",sans-serif;font-size:12px;font-weight:600;
   letter-spacing:.04em;background:var(--seal-soft);color:var(--seal);
   padding:2px 7px;border-radius:2px;margin-right:5px}
 .index{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:0 34px}
+.cpv{border-top:1px solid var(--line);margin:18px 0}
+.cpv a{display:grid;grid-template-columns:96px 1fr auto;gap:8px 18px;align-items:baseline;
+  padding:11px 4px;border-bottom:1px solid var(--line);color:var(--ink)}
+.cpv a:hover{background:var(--seal-soft);text-decoration:none}
+.cpv b{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500;color:var(--seal)}
+.cpv i{font-style:normal}
+.cpv u{text-decoration:none;font-family:"IBM Plex Mono",monospace;font-size:12px;
+  color:var(--mut);white-space:nowrap}
+.cpv em{font-style:normal;background:var(--seal-soft);border-radius:2px}
+@media(max-width:560px){.cpv a{grid-template-columns:1fr auto}.cpv b{grid-column:1/-1}}
 .index a{display:flex;align-items:baseline;gap:8px;padding:7px 0;
   border-bottom:1px dotted var(--line);color:var(--ink);font-size:14px}
 .index a:hover{color:var(--seal);text-decoration:none}
@@ -145,6 +155,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
+<a href="/cpv.html">CPV codes</a>
 <a href="/alerts.html">Daily alerts</a><a href="/about.html">About</a></nav></div></header>
 <div class="wrap">{body}</div>
 <footer><div class="wrap">
@@ -324,6 +335,89 @@ sorted by closing date. Updated daily from the EU Official Journal.</p>
         write(f"/feed/c-{c}.xml", rss(f"{name} tenders", f"/c/{c}.html", items))
         urls.append(f"/c/{c}.html")
 
+    # ---- CPV explorer --------------------------------------------------
+    # A reference tool for the vocabulary itself: every CPV code TED actually
+    # uses, searchable, with the number of tenders open against it right now.
+    by_code = defaultdict(list)
+    for n in rows:
+        if n.get("cpvf"):
+            by_code[n["cpvf"]].append(n)
+
+    cpv_rows = sorted(
+        ((c, lbl, len(by_code.get(c, []))) for c, lbl in meta.CPV_LABELS.items()),
+        key=lambda r: r[0])
+    write("/api/cpv.json",
+          json.dumps(cpv_rows, ensure_ascii=False, separators=(",", ":")))
+
+    live_codes = sum(1 for r in cpv_rows if r[2])
+    div_grid = "".join(
+        f'<a href="/s/{d}.html"><i>{esc(meta.cpv_label(d))}</i><u>{len(v)}</u></a>'
+        for d, v in sorted(by_sector.items(), key=lambda kv: kv[0]))
+    cpv_body = f"""<h1>CPV code explorer</h1>
+<p class="sub">Every Common Procurement Vocabulary code in use across the EU Official
+Journal &mdash; {len(cpv_rows):,} of them &mdash; searchable by code or by what it
+means, each showing how many tenders are open against it right now.</p>
+<input id="q" type="search" autocomplete="off"
+ placeholder="Search a code or a description &mdash; e.g. 45000000, catering, servers, asphalt&hellip;">
+<div id="res"></div>
+<div class="note"><h2>What a CPV code is</h2>
+<p>Every contract notice published in the EU Official Journal is tagged with codes from
+the <b>Common Procurement Vocabulary</b>, an eight-digit classification that says what is
+being bought, independently of the language it is bought in. It is the only reliable way
+to follow one kind of work across twenty-seven countries: a road resurfacing contract is
+<b>45233220</b> whether the notice is written in Portuguese, Estonian or Greek.</p>
+<p>The digits narrow from left to right. The first two are the <i>division</i>
+&mdash; 45 is construction work. The third adds the <i>group</i>, the fourth the
+<i>class</i>, the fifth the <i>category</i>; the remaining digits refine further, and the
+final digit is a check digit. A buyer picks one main code and may add others.</p>
+<p>Suppliers use them to filter: pick the codes that describe what you sell, and you can
+watch the whole single market instead of one national portal.</p></div>
+<h2>The {len(by_sector)} divisions</h2>
+<div class="index">{div_grid}</div>"""
+    write("/cpv.html", page(f"CPV code explorer — all {len(cpv_rows):,} codes | {BRAND}",
+          cpv_body, extra_head=CPV_JS, canonical="/cpv.html",
+          desc=f"Search all {len(cpv_rows):,} CPV procurement codes and see how many EU "
+               f"tenders are open against each one. Updated daily."))
+    urls.append("/cpv.html")
+
+    # ---- one page per code that has something open ----------------------
+    for code, items in sorted(by_code.items()):
+        label = meta.cpv_name(code)
+        div = code[:2]
+        group = meta.cpv_group(code)
+        siblings = [(c, lbl) for c, lbl, k in cpv_rows
+                    if k and meta.cpv_group(c) == group and c != code][:14]
+        sib = "".join(f'<a href="/cpv/{c}.html"><b>{esc(c)}</b><i>{esc(lbl)}</i></a>'
+                      for c, lbl in siblings)
+        cards = "".join(card(n) for n in items[:120])
+        countries = sorted({meta.country_name(n.get("c")) for n in items})
+        body = f"""<div class="crumb"><a href="/">Home</a> / <a href="/cpv.html">CPV codes</a>
+ / <a href="/s/{esc(div)}.html">{esc(meta.cpv_label(div))}</a></div>
+<h1>CPV {esc(code)} &mdash; {esc(label)}</h1>
+<p class="sub">{len(items)} open call{'s' if len(items) != 1 else ''} for tenders across the
+EU are classified under this code right now, from
+{len(countries)} countr{'ies' if len(countries) != 1 else 'y'}. Sorted by closing date and
+rebuilt every day from the EU Official Journal.</p>
+<dl>
+<dt>Code</dt><dd>{esc(code)}</dd>
+<dt>Description</dt><dd>{esc(label)}</dd>
+<dt>Division</dt><dd><a href="/s/{esc(div)}.html">{esc(div)} &mdash; {esc(meta.cpv_label(div))}</a></dd>
+<dt>Open tenders</dt><dd>{len(items)}</dd>
+<dt>Countries</dt><dd>{esc(", ".join(countries)) or '&mdash;'}</dd>
+</dl>
+{cards}
+{f'<h2>Related codes in group {esc(group)}</h2><div class="cpv">{sib}</div>' if sib else ''}
+<div class="note"><h2>Follow this code</h2>
+<p>New tenders under {esc(code)} appear here the morning they are published.
+The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
+<a class="btn" href="/feed/s-{esc(div)}.xml">RSS for this sector</a></div>"""
+        write(f"/cpv/{code}.html",
+              page(f"CPV {code}: {label} — open EU tenders | {BRAND}", body,
+                   desc=f"{len(items)} open EU public tenders under CPV code {code} "
+                        f"({label}). Updated daily.",
+                   canonical=f"/cpv/{code}.html"))
+        urls.append(f"/cpv/{code}.html")
+
     # ---- index pages --------------------------------------------------
     sec_grid = "".join(
         f'<a href="/s/{d}.html"><i>{esc(meta.cpv_label(d))}</i><u>{len(v)}</u></a>'
@@ -410,8 +504,31 @@ No dashboard to remember, no account to create.</p>
     print(f"wrote {len(urls)} pages to {OUT}")
 
 
+CPV_JS = """<script>
+document.addEventListener('DOMContentLoaded',function(){var D=null,q=document.getElementById('q'),res=document.getElementById('res');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function mark(s,t){if(!t)return esc(s);var i=s.toLowerCase().indexOf(t);if(i<0)return esc(s);
+return esc(s.slice(0,i))+'<em>'+esc(s.slice(i,i+t.length))+'</em>'+esc(s.slice(i+t.length))}
+function draw(list,t){if(!list.length){res.innerHTML='<p class="sub">No CPV code matches that. Try a shorter word, or the first digits of a code.</p>';return}
+var more=list.length>400?list.length-400:0;
+res.innerHTML='<h2>'+list.length+' matching code'+(list.length==1?'':'s')+'</h2><div class="cpv">'+
+list.slice(0,400).map(function(r){
+return '<a href="/cpv/'+r[0]+'.html"><b>'+mark(r[0],t)+'</b><i>'+mark(r[1],t)+'</i><u>'+
+(r[2]?r[2]+(r[2]==1?' open':' open'):'&mdash;')+'</u></a>'}).join('')+'</div>'+
+(more?'<p class="sub">'+more+' more &mdash; narrow the search to see them.</p>':'')}
+function run(){var t=q.value.trim().toLowerCase();
+if(!t){res.innerHTML='';return}
+if(!D){fetch('/api/cpv.json').then(function(r){return r.json()}).then(function(j){D=j;run()});
+res.innerHTML='<p class="sub">Loading the vocabulary&hellip;</p>';return}
+var out=[];for(var i=0;i<D.length;i++){var r=D[i];
+if(r[0].indexOf(t)===0||r[1].toLowerCase().indexOf(t)>=0)out.push(r)}
+out.sort(function(a,b){return b[2]-a[2]});draw(out,t)}
+var tmr;q.addEventListener('input',function(){clearTimeout(tmr);tmr=setTimeout(run,140)});
+});
+</script>"""
+
 SEARCH_JS = """<script>
-(function(){var D=null,q=document.getElementById('q');
+document.addEventListener('DOMContentLoaded',function(){var D=null,q=document.getElementById('q');
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
 function load(cb){if(D)return cb();fetch('/api/index.json').then(function(r){return r.json()}).then(function(j){D=j;cb()})}
 function fmt(d){try{return new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}catch(e){return ''}}
@@ -430,7 +547,7 @@ out.map(function(n){return '<div class="row"><div class="ref">'+n[0]+'</div><div
 var tmr;['input','change'].forEach(function(ev){
 document.getElementById('q').addEventListener(ev,function(){clearTimeout(tmr);tmr=setTimeout(run,180)});
 document.getElementById('fc').addEventListener('change',run);
-document.getElementById('fs').addEventListener('change',run)});})();
+document.getElementById('fs').addEventListener('change',run)});});
 </script>"""
 
 ALERTS_BODY = f"""<h1>Daily tender alerts</h1>

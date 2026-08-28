@@ -1,4 +1,14 @@
 """Reference data: CPV divisions and country codes."""
+import json
+import os
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+# Full CPV vocabulary, code -> official English label. Harvested from the
+# notice titles TED publishes, which carry the authoritative label for the
+# main CPV code of every notice.
+with open(os.path.join(_HERE, "cpv_labels.json"), encoding="utf-8") as _f:
+    CPV_LABELS = json.load(_f)
 
 CPV_DIVISIONS = {
     "03": "Agriculture, farming, fishing and forestry products",
@@ -74,3 +84,12 @@ def cpv_label(div):
 
 def country_name(code):
     return COUNTRIES.get(code, code or "Unknown")
+
+def cpv_name(code):
+    """Official label for a full 8-digit CPV code, or the division's."""
+    code = (code or "").strip()
+    return CPV_LABELS.get(code) or cpv_label(code[:2])
+
+def cpv_group(code):
+    """The 3-digit CPV group a code belongs to, e.g. 45210000 -> 452."""
+    return (code or "")[:3]
