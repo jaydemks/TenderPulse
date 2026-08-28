@@ -20,6 +20,7 @@ with open(_CFG_PATH, encoding="utf-8") as _f:
 API = "https://api.ted.europa.eu/v3/notices/search"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STORE_DIR = os.path.join(ROOT, "data", "notices")
+ARCHIVE_DIR = os.path.join(ROOT, "data", "archive")
 LEGACY = os.path.join(ROOT, "data", "notices.jsonl")
 
 # Notice types that represent an open opportunity (validated against the API).
@@ -205,6 +206,63 @@ def save_store(store):
         os.remove(LEGACY)
 
 
+def archive_key(rec):
+    """Group the archive by the month the call closed in.
+
+    Once a month is past, its file never changes again, so the daily commit
+    stays small no matter how large the archive grows.
+    """
+    return (rec.get("d") or "unknown")[:7]
+
+
+def archive(dropped):
+    """Keep closed calls for good, in an append-only store beside the live one.
+
+    The site only publishes the last ARCHIVE_DAYS of closed calls, to keep the
+    page count in hand. The record itself is worth more than the page: a run of
+    historical procurement data is the one thing here that cannot be fetched
+    from TED, which only serves what is current. Throwing it away each night
+    would mean starting from nothing every night.
+    """
+    if not dropped:
+        return 0
+    os.makedirs(ARCHIVE_DIR, exist_ok=True)
+    by_month = {}
+    for rec in dropped:
+        by_month.setdefault(archive_key(rec), {})[rec["id"]] = rec
+
+    added = 0
+    for month, recs in by_month.items():
+        path = os.path.join(ARCHIVE_DIR, f"{month}.jsonl")
+        existing = {}
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        r = json.loads(line)
+                        existing[r["id"]] = r
+        before = len(existing)
+        existing.update(recs)
+        added += len(existing) - before
+        with open(path, "w", encoding="utf-8") as f:
+            for rid in sorted(existing):
+                f.write(json.dumps(existing[rid], ensure_ascii=False,
+                                   sort_keys=True) + "\n")
+    return added
+
+
+def archive_size():
+    if not os.path.isdir(ARCHIVE_DIR):
+        return 0
+    total = 0
+    for name in os.listdir(ARCHIVE_DIR):
+        if name.endswith(".jsonl"):
+            with open(os.path.join(ARCHIVE_DIR, name), encoding="utf-8") as f:
+                total += sum(1 for line in f if line.strip())
+    return total
+
+
 def main():
     print(f"TED sync — window {WINDOW_DAYS} days")
     fresh = fetch_all()
@@ -265,9 +323,13 @@ def main():
             f"{open_after}. That is not a normal day's expiry. Nothing was changed."
         )
 
+    # only once the run has been judged sane: nothing suspicious gets archived
+    added = archive([v for k, v in store.items() if k not in kept])
+
     save_store(kept)
     print(f"store: {before} -> {len(kept)}  (+{len(new)} new, "
-          f"{len(store) - len(kept)} beyond the {ARCHIVE_DAYS}-day archive)")
+          f"{len(store) - len(kept)} past the {ARCHIVE_DAYS}-day window)")
+    print(f"archive: +{added} kept for good, {archive_size()} closed calls held")
     meta = {"generated": datetime.now(timezone.utc).isoformat(),
             "total": len(kept), "new": len(new)}
     with open(os.path.join(ROOT, "data", "last_run.json"), "w") as f:
