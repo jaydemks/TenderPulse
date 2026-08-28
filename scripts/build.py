@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+from urllib.parse import urlparse
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -19,6 +20,9 @@ CFG = json.load(open(os.path.join(ROOT, "config.json"), encoding="utf-8"))
 BRAND = CFG["brand"]
 BASE = (os.environ.get("SITE_URL") or CFG["base_url"]).rstrip("/")
 NOW = datetime.now(timezone.utc)
+# GitHub Pages serves project sites under /<repo>/, so every in-page link
+# needs that prefix. Derived from SITE_URL; empty for a root domain.
+PREFIX = urlparse(BASE).path.rstrip("/") if BASE else ""
 
 CSS = """
 :root{
@@ -201,6 +205,11 @@ def load():
 
 
 def write(path, content):
+    if PREFIX and path.endswith((".html", ".xml")):
+        content = (content
+                   .replace('href="/', f'href="{PREFIX}/')
+                   .replace('src="/', f'src="{PREFIX}/')
+                   .replace("fetch('/api/", f"fetch('{PREFIX}/api/"))
     full = os.path.join(OUT, path.lstrip("/"))
     os.makedirs(os.path.dirname(full), exist_ok=True)
     with open(full, "w", encoding="utf-8") as f:
