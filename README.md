@@ -48,7 +48,7 @@ from a browser.
 
 ```bash
 # how many open construction tenders are there in Italy right now?
-curl -s https://jaydemks.github.io/TenderPulse/api/c/ITA.json   | jq '[.[] | select(.cpv_divisions[]=="45")] | length'
+curl -s https://jaydemks.github.io/TenderPulse/api/c/ITA.json | jq '[.[] | select(.cpv_divisions[]=="45")] | length'
 ```
 
 Full documentation, with the shape of a notice object:
