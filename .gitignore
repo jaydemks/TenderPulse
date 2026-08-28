@@ -4,3 +4,4 @@ site/
 indexnow.json
 data/health_seen.json
 data/awards/
+dist/
