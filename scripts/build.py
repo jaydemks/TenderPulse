@@ -28,6 +28,7 @@ PREFIX = urlparse(BASE).path.rstrip("/") if BASE else ""
 ARCHIVE_DAYS = int(CFG.get("archive_days") or 90)
 # Search Console verification: the token from the "HTML tag" method.
 VERIFY = (CFG.get("google_site_verification") or "").strip()
+VERIFY_BING = (CFG.get("bing_site_verification") or "").strip()
 
 CSS = """
 :root{
@@ -159,6 +160,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(desc)}">
 {f'<meta name="google-site-verification" content="{esc(VERIFY)}">' if VERIFY else ''}
+{f'<meta name="msvalidate.01" content="{esc(VERIFY_BING)}">' if VERIFY_BING else ''}
 {f'<link rel="canonical" href="{BASE}{canonical}">' if BASE and canonical else ''}
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="{esc(BRAND)}">
