@@ -927,12 +927,13 @@ to the official notice. Rebuilt every morning, same as the pages.</p>
 key and no rate limit.</p>
 <p><a href="/api.html">Read the API documentation &rarr;</a></p>
 
-<div class="note"><h2>What about email?</h2>
-<p>There is no email list, and there is nothing here to sign up to. Running one means
-holding your address, which means being a data controller, and we would rather point you
-at a feed that needs none of that. If that changes, the
-<a href="/privacy.html">privacy page</a> will say so before a single address is
-collected &mdash; not after.</p></div>
+<div class="note"><h2>Or be told when things change</h2>
+<p>There is a subscribe page for that, and it is deliberately not on this site: it is
+hosted by Gumroad, who receive the address, hold it, and send the messages under their
+own privacy notice and their own unsubscribe link. Nothing about you is collected here
+&mdash; following the link is the only thing that happens on our side, and the
+<a href="/privacy.html">privacy page</a> spells out the rest.</p>
+<a class="btn" href="{CFG['alerts_url']}" rel="noopener">Subscribe on Gumroad &rarr;</a></div>
 
 <h2>Why this exists</h2>
 <p>EU tender data is public and free, but it is published in a form built for lawyers,
@@ -1047,12 +1048,20 @@ this site is rebuilt from it every day and would otherwise restore the old text.
 believe something here should not be shown, write to us at {CONTACT} and we will look
 at it.</p>
 
-<h2>If this ever changes</h2>
-<p>This page describes what the site does today, and today it collects nothing. If an
-email list or any other form of sign-up is ever added, it will be described here in full
-&mdash; who the controller is, the legal basis, how long anything is kept and how to get
-it deleted &mdash; <b>before</b> the first address is collected, not after. Nothing is
-gathered quietly in the meantime.</p>
+<h2>The one place an address can be given</h2>
+<p>There is a subscribe page for people who want to hear when the data changes, and it is
+deliberately somewhere else: <a href="{CFG['alerts_url']}" rel="noopener">on Gumroad</a>.
+If you use it, <b>Gumroad</b> is who receives your address, stores it and sends the
+messages, under
+<a href="https://gumroad.com/privacy" rel="nofollow noopener">their privacy notice</a>,
+with their confirmation step and their unsubscribe link in every message. They are the
+data controller for that list.</p>
+<p>This was a deliberate choice rather than a shortcut. Putting the form here would mean
+holding addresses on this side, and the whole point of the page you are reading is that
+there is nothing to hold. The link leaves; nothing arrives.</p>
+<p>If that ever changes &mdash; a form on this site, an account, anything that collects
+here &mdash; it will be described on this page <b>before</b> the first address is taken,
+not after. Nothing is gathered quietly in the meantime.</p>
 
 <h2>Getting in touch</h2>
 <p>Questions about any of this: {CONTACT}.</p>
