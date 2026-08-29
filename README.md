@@ -1,15 +1,15 @@
-# TenderPulse
+# Bidledger
 
 A searchable, daily-refreshed index of open public tenders across the European Union.
 
 The European Union publishes every public contract above threshold in *Tenders Electronic
 Daily* (TED), the supplement to the Official Journal. The data is public and free, but it
 is formatted for legal completeness rather than for the small companies that could win the
-work. TenderPulse takes the same feed and turns it into something you can search in ten
+work. Bidledger takes the same feed and turns it into something you can search in ten
 seconds: one page per notice, per sector and per country, sorted by closing date, with an
 RSS feed for anything you want to follow.
 
-**Live site:** https://jaydemks.github.io/TenderPulse
+**Live site:** https://jaydemks.github.io/bidledger
 
 ## How it works
 
@@ -48,11 +48,11 @@ from a browser.
 
 ```bash
 # how many open construction tenders are there in Italy right now?
-curl -s https://jaydemks.github.io/TenderPulse/api/c/ITA.json | jq '[.[] | select(.cpv_divisions[]=="45")] | length'
+curl -s https://jaydemks.github.io/bidledger/api/c/ITA.json | jq '[.[] | select(.cpv_divisions[]=="45")] | length'
 ```
 
 Full documentation, with the shape of a notice object:
-https://jaydemks.github.io/TenderPulse/api.html
+https://jaydemks.github.io/bidledger/api.html
 
 There is no query language — it is a static site, so you fetch a collection and filter it
 yourself. Everything is rebuilt once a day; cache it rather than polling.
@@ -116,7 +116,7 @@ accessed anonymously, and are re-used under the European Commission's open data 
 TED remains the authoritative source: every page here links back to the official notice,
 and anything binding — specifications, annexes, exact deadlines — should be read there.
 
-TenderPulse is an independent project. It is not affiliated with, endorsed by, or
+Bidledger is an independent project. It is not affiliated with, endorsed by, or
 operated by the European Union or by any contracting authority.
 
 The site sets no cookies, collects no personal data, has no analytics or tracking of

@@ -30,7 +30,7 @@ from sync import pick_lang  # the same multilingual flattening the site uses
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "data", "awards")
 API = "https://api.ted.europa.eu/v3/notices/search"
-USER_AGENT = "tenderpulse/1.0 (open data reuse; TED Search API)"
+USER_AGENT = "bidledger/1.0 (open data reuse; TED Search API)"
 
 # Contract award notices: the ones that name a winner.
 AWARD_TYPES = ["can-standard", "can-social", "can-desg", "can-tran"]

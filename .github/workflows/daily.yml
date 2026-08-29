@@ -47,7 +47,7 @@ jobs:
       - name: Commit the updated store
         run: |
           set -eu
-          git config user.name  "tenderpulse-ci"
+          git config user.name  "bidledger-ci"
           git config user.email "actions@github.com"
           git add -A data/
           git diff --staged --quiet && { echo "store unchanged"; exit 0; }

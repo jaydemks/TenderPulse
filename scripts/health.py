@@ -30,14 +30,14 @@ def check(label, ok, detail=""):
 
 
 def get(path, timeout=45):
-    req = urllib.request.Request(BASE + path, headers={"User-Agent": "tenderpulse-health"})
+    req = urllib.request.Request(BASE + path, headers={"User-Agent": "bidledger-health"})
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return r.status, r.read()
 
 
 def head(path, timeout=45):
     req = urllib.request.Request(BASE + path, method="HEAD",
-                                 headers={"User-Agent": "tenderpulse-health"})
+                                 headers={"User-Agent": "bidledger-health"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return r.status

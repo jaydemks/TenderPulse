@@ -23,7 +23,7 @@ cnt_opts = "".join(f'<option value="{c}">{html.escape(meta.country_name(c))}</op
 sec_opts = "".join(f'<option value="{d}">{html.escape(meta.cpv_label(d))}</option>'
                    for d in sorted(by_sector))
 
-page = f"""<title>TenderPulse</title>
+page = f"""<title>Bidledger</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
@@ -77,7 +77,7 @@ your country and your keywords. No portal to check, nothing to remember.</p>
 <footer><div class="wrap">
 Data source: <a href="https://ted.europa.eu/" target="_blank" rel="noopener">Tenders
 Electronic Daily</a>, the official journal of EU public procurement, re-used under the
-European Commission's open data policy. TenderPulse is an independent service and is not
+European Commission's open data policy. Bidledger is an independent service and is not
 affiliated with the European Union. Every notice links back to the authoritative text.
 </div></footer>
 

@@ -168,7 +168,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 {f'<meta property="og:image" content="{BASE}/brand/og.png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:image" content="{BASE}/brand/og.png">' if BASE else ''}
 <link rel="icon" href="/brand/avatar.png" type="image/png">
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
-<header class="mast"><div class="wrap"><a class="logo" href="/">Tender<em>Pulse</em></a>
+<header class="mast"><div class="wrap"><a class="logo" href="/">Bid<em>ledger</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
 <a href="/cpv.html">CPV codes</a><a href="/export.html">CSV</a><a href="/api.html">API</a>
 <a href="/alerts.html">Daily alerts</a><a href="/about.html">About</a></nav></div></header>
@@ -989,7 +989,7 @@ is kept for {{ARCHIVE_DAYS}} days as a record.</p>
 European Commission's open data policy; it stays free under the same terms. Attribution
 is appreciated but not required. There is no uptime guarantee and no support &mdash; it is
 a static file on GitHub Pages. If you build something with it,
-<a href="https://github.com/jaydemks/TenderPulse">the code is here</a>.</p>
+<a href="https://github.com/jaydemks/bidledger">the code is here</a>.</p>
 
 <div class="note"><h2>The awards, as a dataset</h2>
 <p>This API covers what is open. What was already won &mdash; 374,443 contract
@@ -1004,7 +1004,7 @@ inbox instead.</p>
 
 CONTACT = (f'<a href="mailto:{CFG["contact_email"]}">{CFG["contact_email"]}</a>'
            if CFG.get("contact_email") else
-           '<a href="https://github.com/jaydemks/TenderPulse/issues">an issue on the '
+           '<a href="https://github.com/jaydemks/bidledger/issues">an issue on the '
            'repository</a>')
 
 PRIVACY_BODY = f"""<h1>Privacy</h1>

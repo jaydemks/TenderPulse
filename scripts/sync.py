@@ -35,7 +35,7 @@ FIELDS = ["publication-number", "notice-title", "buyer-name", "buyer-country",
 WINDOW_DAYS = int(os.environ.get("WINDOW_DAYS", "30"))
 PAGE_SIZE = 250
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "400"))
-USER_AGENT = "tender-radar/1.0 (open data reuse; TED Search API)"
+USER_AGENT = "bidledger/1.0 (open data reuse; TED Search API)"
 
 
 def post(body, attempt=0):
