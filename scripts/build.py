@@ -756,6 +756,11 @@ pulled every day from the EU Official Journal and made searchable. Free, no acco
 <p>One short email a day with the new tenders in your sector and country.
 No dashboard to remember, no account to create.</p>
 <a class="btn" href="/alerts.html">Set up daily alerts</a></div>
+<div class="note"><h2>And who won the ones that already closed?</h2>
+<p>Every contract award published in the Official Journal &mdash; the winning company,
+the buyer, the sector and the value in euro &mdash; is a separate dataset of 374,443
+rows, free to download and re-use.</p>
+<a class="btn" href="{CFG['dataset_url']}" rel="noopener">Contract awards dataset &rarr;</a></div>
 <h2>Browse by sector</h2><div class="index">{sec_grid}</div>"""
     write("/index.html", page(f"{BRAND} — {CFG['tagline']}", home,
           desc=CFG["tagline"], canonical="/", extra_head=SEARCH_JS))
