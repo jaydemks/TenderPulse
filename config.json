@@ -8,5 +8,6 @@
   "indexnow_key": "1eb8f5c92a2bc2aff65ca9daa11eaf41",
   "archive_days": 60,
   "google_site_verification": "8MEFWZomRmm5Z34b9rgF3XAJu2R6VQe7aOXHvfei2UU",
-  "dataset_url": "https://huggingface.co/datasets/jaydem/eu-contract-awards"
+  "dataset_url": "https://huggingface.co/datasets/jaydem/eu-contract-awards",
+  "archive_url": "https://tenderpulse.gumroad.com/l/eu-contract-awards"
 }

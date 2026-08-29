@@ -672,7 +672,10 @@ Free, no sign-up, and you may re-use it &mdash; it is public data.</p>
 <p>Open tenders are one half of the record. The other half — every contract
 award published in the Official Journal, with the winning company and the value
 in euro — is a separate dataset of 374,443 rows, free to download and re-use.</p>
-<a class="btn" href="{CFG['dataset_url']}" rel="noopener">Contract awards dataset &rarr;</a></div>
+<a class="btn" href="{CFG['dataset_url']}" rel="noopener">Contract awards dataset &rarr;</a>
+<p class="sub" style="margin-top:14px">That file covers the last twelve months and is
+free. The two-year run &mdash; 719,960 awards, refreshed monthly &mdash;
+<a href="{CFG['archive_url']}" rel="noopener">is sold to pay for the work</a>.</p></div>
 <div class="note"><h2>Prefer JSON?</h2>
 <p>The same data is available as an API with no key and no rate limit.</p>
 <a class="btn" href="/api.html">API documentation</a></div>"""
