@@ -57,6 +57,18 @@ https://jaydemks.github.io/bidledger/api.html
 There is no query language — it is a static site, so you fetch a collection and filter it
 yourself. Everything is rebuilt once a day; cache it rather than polling.
 
+## Who wins the work
+
+Open tenders say who is buying. A separate set of 992 pages says who has been
+*winning*: for each country and sector with enough history, the companies that
+took the most contracts over two years, the median award, and the most recent
+ones — built from `data/winners.json`, an aggregate of the award store small
+enough to live in the repository.
+
+The award store itself (98 MB) is not in git. The pages only need the shape of
+it, so `scripts/winners_aggregate.py` boils 720,000 rows down to 3.7 MB and the
+build reads that.
+
 ## The contract awards dataset
 
 Open tenders are half the record. The other half is who won them. Every contract

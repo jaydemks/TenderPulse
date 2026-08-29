@@ -418,6 +418,106 @@ instead of checking this page.</p>
             urls.append(path)
 
 
+    # ---- who wins the work ------------------------------------------------
+    # Open tenders say who is buying. These pages say who has been winning,
+    # with the amounts, which is the question a company actually has before it
+    # decides what to bid. Nobody else publishes this as web pages: the data is
+    # public, but it arrives as an API nobody calls. Built from the aggregate
+    # in data/winners.json so the workflow does not need the 98 MB store.
+    winners_path = os.path.join(ROOT, "data", "winners.json")
+    winners = {}
+    if os.path.exists(winners_path):
+        with open(winners_path, encoding="utf-8") as f:
+            winners = json.load(f)
+
+    def eur(v, plain=False):
+        """Money for a reader. `plain` uses a real euro sign, for meta tags:
+        an HTML entity there gets escaped and shows up as literal text."""
+        sign = "€" if plain else "&euro;"
+        if v is None:
+            return "unknown" if plain else "&mdash;"
+        if v >= 1_000_000:
+            return f"{sign}{v/1_000_000:,.1f}M"
+        if v >= 1_000:
+            return f"{sign}{v/1_000:,.0f}k"
+        return f"{sign}{v:,.0f}"
+
+    def winner_path(c, d):
+        stem = f"{slug(meta.country_name(c))}-{slug(meta.cpv_label(d))}"[:70].strip("-")
+        return f"/w/{stem}.html"
+
+    winners_by_country = defaultdict(list)
+    for key, w in sorted(winners.items()):
+        c, d = key.split("|")
+        cname, sname = meta.country_name(c), meta.cpv_label(d)
+        winners_by_country[c].append((d, sname, w["n"]))
+
+        sup_rows = "".join(
+            f'<div class="row"><div class="ref">{i+1}</div>'
+            f'<div class="ttl">{esc(name)}'
+            f'<div class="meta">{n} contract{"s" if n != 1 else ""} won</div></div>'
+            f'<div class="when"><b>{eur(total)}</b>total awarded</div></div>'
+            for i, (name, n, total) in enumerate(w["top"]))
+
+        rec_rows = "".join(
+            f'<div class="row"><div class="ref">{esc(p)}</div>'
+            f'<div class="ttl"><a href="https://ted.europa.eu/en/notice/-/detail/{esc(rid)}"'
+            f' rel="nofollow noopener" target="_blank">{esc(title)}</a>'
+            f'<div class="meta">Won by {esc(name)} &middot; bought by {esc(buyer)}</div></div>'
+            f'<div class="when"><b>{eur(val)}</b></div></div>'
+            for p, rid, name, val, buyer, title in w["recent"])
+
+        nature = ", ".join(f"{meta.CONTRACT_NATURE.get(k, k)} {v:,}"
+                           for k, v in list(w["nature"].items())[:3])
+        open_now = len(combos.get((c, d), []))
+        body = f"""<div class="crumb"><a href="/">Home</a>
+ / <a href="/c/{esc(c)}.html">{esc(cname)}</a>
+ / <a href="/s/{esc(d)}.html">{esc(sname)}</a></div>
+<h1>Who wins {esc(sname.lower())} contracts in {esc(cname)}</h1>
+<p class="sub">{w['n']:,} contracts were awarded to {w['suppliers']:,} different
+companies over the two years to July 2026, in CPV division {esc(d)}. The median
+award was {eur(w['median'])}. Every row here comes from the award notice the
+contracting authority published in the EU Official Journal.</p>
+<dl>
+<dt>Contracts awarded</dt><dd>{w['n']:,}</dd>
+<dt>Distinct winners</dt><dd>{w['suppliers']:,}</dd>
+<dt>Median award</dt><dd>{eur(w['median'])}</dd>
+<dt>With a published value</dt><dd>{w['priced']:,} of {w['n']:,}</dd>
+<dt>Contract types</dt><dd>{esc(nature) or '&mdash;'}</dd>
+</dl>
+
+<h2>The companies winning most often</h2>
+{sup_rows}
+<p class="sub">Ranked by number of contracts, not by value, because a single
+framework agreement can carry a ceiling far larger than the work actually done
+under it. Totals are the sum of published values and should be read as an order
+of magnitude, not an audited figure.</p>
+
+<h2>Most recently awarded</h2>
+{rec_rows}
+
+{f'<div class="note"><h2>{open_now} of these are open right now</h2><p>Contracts of this kind still accepting bids in {esc(cname)}, refreshed every morning.</p><a class="btn" href="{combo_path(c, d)}">Open {esc(sname.lower())} tenders in {esc(cname)} &rarr;</a></div>' if open_now else ''}
+
+<div class="note"><h2>The whole record, as data</h2>
+<p>These pages are a reading of one slice. The full run &mdash; every award in the
+Union, with the winner and the value in euro &mdash; is published as a dataset you
+can download and check yourself.</p>
+<a class="btn" href="{CFG['dataset_url']}" rel="noopener">Contract awards dataset &rarr;</a></div>
+
+<p class="sub">See also:
+<a href="/c/{esc(c)}.html">every open tender in {esc(cname)}</a> &middot;
+<a href="/s/{esc(d)}.html">{esc(sname)} across the EU</a></p>"""
+
+        path = winner_path(c, d)
+        write(path, page(
+            f"Who wins {sname.lower()} contracts in {cname} | {BRAND}", body,
+            canonical=path,
+            desc=f"{w['n']:,} {sname.lower()} contracts awarded in {cname} over two "
+                 f"years, the {w['suppliers']:,} companies that won them, and the "
+                 f"amounts. Median award {eur(w['median'], plain=True)}."))
+        urls.append(path)
+
+
     # ---- sector pages -------------------------------------------------
     for d, items in sorted(by_sector.items()):
         label = meta.cpv_label(d)
@@ -445,6 +545,7 @@ sorted by closing date. Updated daily from the EU Official Journal.</p>
 {esc(name)}, published in the EU Official Journal and sorted by closing date.</p>
 <p><a href="/feed/c-{esc(c)}.xml">RSS feed for {esc(name)}</a></p>
 {f'<h2>By sector in {esc(name)}</h2><div class="cpv">' + "".join(f'<a href="{combo_path(c, d)}"><b>{esc(d)}</b><i>{esc(lbl)}</i><u>{k}</u></a>' for d, lbl, k in sorted(combo_links.get(c, []), key=lambda t: -t[2])) + '</div>' if combo_links.get(c) else ''}
+{f'<h2>Who has been winning in {esc(name)}</h2><p class="sub">Two years of awarded contracts, with the companies that took them.</p><div class="cpv">' + "".join(f'<a href="{winner_path(c, d)}"><b>{esc(d)}</b><i>{esc(lbl)}</i><u>{n:,} awarded</u></a>' for d, lbl, n in sorted(winners_by_country.get(c, []), key=lambda t: -t[2])) + '</div>' if winners_by_country.get(c) else ''}
 <h2>All open tenders in {esc(name)}</h2>
 {cards}"""
         write(f"/c/{c}.html",
@@ -794,6 +895,7 @@ rows, free to download and re-use.</p>
     # instead of being averaged away. Chunked well under the 50,000 URL limit.
     def section(u):
         for pre, name in (("/n/", "notices"), ("/cpv/", "cpv"), ("/t/", "trades"),
+                          ("/w/", "winners"),
                           ("/s/", "sectors"), ("/c/", "countries")):
             if u.startswith(pre):
                 return name
@@ -804,7 +906,8 @@ rows, free to download and re-use.</p>
         groups[section(u)].append(u)
 
     parts = []
-    for name in ("core", "sectors", "countries", "trades", "cpv", "notices"):
+    for name in ("core", "sectors", "countries", "winners", "trades", "cpv",
+                 "notices"):
         chunk = groups.get(name) or []
         for i in range(0, len(chunk), 10000):
             piece = chunk[i:i + 10000]
