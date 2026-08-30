@@ -14,21 +14,35 @@ RSS feed for anything you want to follow.
 ## How it works
 
 ```
-scripts/sync.py    TED Search API  ->  data/notices/YYYY-MM.jsonl
-scripts/build.py   the store       ->  site/  (notice, sector and country pages, RSS, sitemap)
-scripts/meta.py    CPV division and country lookup tables
-scripts/preview.py a single self-contained page, for sharing a snapshot
-config.json        brand, canonical URL, outbound links
+scripts/sync.py              TED Search API   ->  data/notices/YYYY-MM.jsonl
+scripts/build.py             the store        ->  site/  (notice, sector, country
+                             and winner pages, RSS, sitemap index)
+scripts/meta.py              CPV division and country lookup tables
+scripts/preview.py           a single self-contained page, for sharing a snapshot
+
+scripts/awards.py            past award notices, month by month, resumable
+scripts/enrich_awards.py     values converted to euro at the ECB rate on the day,
+                             with the impossible ones flagged rather than deleted
+scripts/winners_aggregate.py 720,000 awards  ->  data/winners.json, small enough to commit
+scripts/export_awards.py     the award store  ->  one flat CSV
+scripts/health.py            one screen of checks against the live site
+
+config.json                  brand, canonical URL, outbound links
 ```
 
-A scheduled job runs once a day at 05:17 UTC: it pulls the notices published since the
-last run, drops the ones whose deadline has passed, rewrites the affected pages and
-deploys. The store is sharded by publication month so that historic files stop changing
+A scheduled job pulls the notices published since the last run, drops the ones whose
+deadline has passed, rewrites the affected pages and deploys. It is scheduled three
+times a day — 05:17, 13:37 and 19:47 UTC — because GitHub's cron is best-effort and
+quietly skips runs under load. The job is idempotent, so the later two normally find
+nothing to do and cost nothing; they exist so that one dropped run does not cost a
+day of freshness. The store is sharded by publication month so that historic files stop changing
 and each day's commit stays small.
 
-Only *calls for competition* are indexed — contract notices, social and special services
-notices, design contests, qualification systems, and prior information notices used as a
-call for competition. Award notices, which announce a winner after the fact, are excluded.
+The daily index covers *calls for competition* only — contract notices, social and
+special services notices, design contests, qualification systems, and prior information
+notices used as a call for competition. Award notices, which name a winner after the
+fact, are a separate pipeline with its own store and its own pages; see **Who wins the
+work** and **The contract awards dataset** below.
 
 ## A free API
 
