@@ -172,7 +172,7 @@ def page(title, body, desc="", canonical="", extra_head=""):
 <link rel="stylesheet" href="/style.css">{extra_head}</head><body>
 <header class="mast"><div class="wrap"><a class="logo" href="/">Bid<em>ledger</em></a>
 <nav><a href="/sectors.html">Sectors</a><a href="/countries.html">Countries</a>
-<a href="/cpv.html">CPV codes</a><a href="/export.html">CSV</a><a href="/api.html">API</a>
+<a href="/winners.html">Who wins</a><a href="/cpv.html">CPV codes</a><a href="/export.html">CSV</a><a href="/api.html">API</a>
 <a href="/alerts.html">Daily alerts</a><a href="/about.html">About</a></nav></div></header>
 <div class="wrap">{body}</div>
 <footer><div class="wrap">
@@ -285,7 +285,8 @@ def main():
         for d in n.get("cpv", []):
             by_sector[d].append(n)
 
-    urls = ["/", "/sectors.html", "/countries.html", "/alerts.html", "/about.html"]
+    urls = ["/", "/sectors.html", "/countries.html", "/winners.html",
+            "/alerts.html", "/about.html"]
 
     # ---- notice pages -------------------------------------------------
     for n, closed in [(x, False) for x in rows] + [(x, True) for x in archive]:
@@ -713,6 +714,41 @@ The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
         f'and associated countries.</p><div class="index">{cnt_grid}</div>',
         desc="Open EU public tenders grouped by country.", canonical="/countries.html"))
 
+    # ---- the winners hub --------------------------------------------------
+    # The award pages are the part of this site nobody else publishes, and they
+    # were the hardest to reach: three clicks down, behind a country page. A
+    # crawler that has only seen the home page would take a long time to find
+    # them, and most never would. This puts every one of them two clicks away.
+    if winners_by_country:
+        blocks = []
+        for c, items in sorted(winners_by_country.items(),
+                               key=lambda kv: (-sum(t[2] for t in kv[1]),
+                                               meta.country_name(kv[0]))):
+            grid = "".join(
+                f'<a href="{winner_path(c, d)}"><i>{esc(lbl)}</i>'
+                f'<u>{n:,} awarded</u></a>'
+                for d, lbl, n in sorted(items, key=lambda t: -t[2]))
+            blocks.append(f'<h2 id="{esc(c.lower())}">{esc(meta.country_name(c))}</h2>'
+                          f'<div class="index">{grid}</div>')
+        total_pages = sum(len(v) for v in winners_by_country.values())
+        total_awards = sum(t[2] for v in winners_by_country.values() for t in v)
+        write("/winners.html", page(
+            f"Who wins EU public contracts | {BRAND}",
+            f'<h1>Who wins the work</h1>'
+            f'<p class="sub">{total_awards:,} awarded contracts across '
+            f'{len(winners_by_country)} countries, grouped the way buyers classify '
+            f'them. Each page names the companies that won most often, what they '
+            f'were paid, and the most recent awards with a link to the official '
+            f'notice.</p>'
+            f'<p class="sub">Ranked by number of contracts rather than by value: a '
+            f'single framework agreement can carry a ceiling far larger than the '
+            f'work actually done under it.</p>'
+            + "".join(blocks),
+            desc=f"The companies winning EU public contracts, across {total_pages} "
+                 f"country and sector combinations, with amounts and dates.",
+            canonical="/winners.html"))
+        urls.append("/winners.html")
+
     # search index (compact)
     idx = [[n["id"], n["t"][:130], n.get("c", ""), n.get("cpv", []), n["d"][:10]]
            for n in rows]
@@ -944,7 +980,7 @@ rows, free to download and re-use.</p>
     if key and BASE:
         write(f"/{key}.txt", key)
         cutoff = (NOW.date() - timedelta(days=2)).isoformat()
-        fresh = ["/", "/sectors.html", "/countries.html"]
+        fresh = ["/", "/sectors.html", "/countries.html", "/winners.html"]
         fresh += [f"/n/{n['id']}.html" for n in rows if (n.get("p") or "") >= cutoff]
         fresh = fresh[:9000]
         body = {
