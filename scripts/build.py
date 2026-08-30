@@ -747,7 +747,6 @@ The {esc(meta.cpv_label(div))} feed carries them as they land.</p>
             desc=f"The companies winning EU public contracts, across {total_pages} "
                  f"country and sector combinations, with amounts and dates.",
             canonical="/winners.html"))
-        urls.append("/winners.html")
 
     # search index (compact)
     idx = [[n["id"], n["t"][:130], n.get("c", ""), n.get("cpv", []), n["d"][:10]]
